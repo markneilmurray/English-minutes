@@ -1,0 +1,1825 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="theme-color" content="#143232" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-title" content="English" />
+  <title>English Practice</title>
+  <style>
+    :root {
+      font-family: "Quicksand", "Nunito", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+    * { box-sizing: border-box; }
+    html, body, #root { margin: 0; padding: 0; min-height: 100vh; }
+    body {
+      background: #F5EFE6;
+      color: #143232;
+      -webkit-tap-highlight-color: transparent;
+      -webkit-touch-callout: none;
+    }
+    button { font-family: inherit; cursor: pointer; border: none; background: none; }
+    input, select { font-family: inherit; }
+    #_boot {
+      position: fixed; inset: 0; display: flex; align-items: center; justify-content: center;
+      color: #143232; font-size: 14px; opacity: 0.6;
+    }
+  </style>
+</head>
+<body>
+  <div id="root"><div id="_boot">Loading...</div></div>
+
+  <!-- React 18 (UMD) -->
+  <script crossorigin src="https://unpkg.com/react@18.3.1/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js"></script>
+
+  <!-- Babel for in-browser JSX -->
+  <script src="https://unpkg.com/@babel/standalone@7.24.7/babel.min.js"></script>
+
+  <!-- Firebase (compat, easier from globals) -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+
+  <script>
+    // Family code is always defined so the app boots even if Firebase fails to load
+    var FAMILY_CODE = "murray-7f3k9q2x-home";
+
+    // Firebase config and init - defensive so a CDN failure doesn't break the app
+    var FIREBASE_CONFIG = {
+      apiKey: "AIzaSyCdY2PnB_J2xgKWK-cYHLdNLt-a1SmCz0I",
+      authDomain: "maths-minutes.firebaseapp.com",
+      databaseURL: "https://maths-minutes-default-rtdb.europe-west1.firebasedatabase.app",
+      projectId: "maths-minutes",
+      storageBucket: "maths-minutes.firebasestorage.app",
+      messagingSenderId: "706834197716",
+      appId: "1:706834197716:web:bc50de18da9ff70a0d9f41"
+    };
+    if (typeof firebase !== "undefined" && firebase.initializeApp) {
+      try {
+        firebase.initializeApp(FIREBASE_CONFIG);
+      } catch (e) {
+        console.error("Firebase init error:", e);
+      }
+    } else {
+      console.warn("Firebase scripts did not load - running in local-only mode");
+    }
+  </script>
+
+  <script type="text/babel" data-presets="react">
+
+/* ============================ React + Icons ============================ */
+const { useState, useEffect, useRef, useMemo } = React;
+
+const Icon = ({ children, size = 24, ...props }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>{children}</svg>
+);
+const Star = (p) => <Icon {...p}><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" /></Icon>;
+const Flame = (p) => <Icon {...p}><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z" /></Icon>;
+const Check = (p) => <Icon {...p}><polyline points="20 6 9 17 4 12" /></Icon>;
+const X = (p) => <Icon {...p}><path d="M18 6 6 18M6 6l12 12" /></Icon>;
+const ChevronRight = (p) => <Icon {...p}><path d="m9 18 6-6-6-6" /></Icon>;
+const BarChart3 = (p) => <Icon {...p}><path d="M3 3v18h18" /><path d="M8 17V9" /><path d="M13 17V5" /><path d="M18 17v-3" /></Icon>;
+const HomeIcon = (p) => <Icon {...p}><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" /><polyline points="9 22 9 12 15 12 15 22" /></Icon>;
+const RotateCcw = (p) => <Icon {...p}><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" /><path d="M3 3v5h5" /></Icon>;
+const Volume2 = (p) => <Icon {...p}><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" /><path d="M15.54 8.46a5 5 0 0 1 0 7.07" /><path d="M19.07 4.93a10 10 0 0 1 0 14.14" /></Icon>;
+const Lock = (p) => <Icon {...p}><rect width="18" height="11" x="3" y="11" rx="2" ry="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></Icon>;
+const BookOpen = (p) => <Icon {...p}><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" /><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" /></Icon>;
+const Trophy = (p) => <Icon {...p}><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6" /><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18" /><path d="M4 22h16" /><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22" /><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22" /><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z" /></Icon>;
+const Users = (p) => <Icon {...p}><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M22 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /></Icon>;
+const Cog = (p) => <Icon {...p}><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" /><circle cx="12" cy="12" r="3" /></Icon>;
+const ArrowLeft = (p) => <Icon {...p}><path d="m12 19-7-7 7-7" /><path d="M19 12H5" /></Icon>;
+const Sparkles = (p) => <Icon {...p}><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z" /><path d="M5 3v4" /><path d="M19 17v4" /><path d="M3 5h4" /><path d="M17 19h4" /></Icon>;
+const Pencil = (p) => <Icon {...p}><path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z" /><path d="m15 5 4 4" /></Icon>;
+
+
+
+/* ============================ STORAGE (Firebase + localStorage) ============================ */
+const KEY = "english_app_v1";
+const FB_PATH = "families/" + FAMILY_CODE + "/english";
+
+const newProfile = (id, name, year, theme) => ({
+  id, name, year, theme,
+  points: 0, streak: 0, lastDate: null,
+  collection: [], favourite: null,
+  subjects: {},
+  days: {},
+});
+
+const DEFAULT_DATA = () => ({
+  activeId: null,
+  voiceName: null,
+  profiles: {
+    charlie: newProfile("charlie", "Charlie", "year1", "monsters"),
+    freddie: newProfile("freddie", "Freddie", "preschool", "dinosaurs"),
+  },
+});
+
+const mergeWithDefault = (parsed) => {
+  const def = DEFAULT_DATA();
+  return {
+    ...def,
+    ...parsed,
+    profiles: { ...def.profiles, ...(parsed.profiles || {}) },
+  };
+};
+
+const hasFirebase = () => typeof firebase !== "undefined" && firebase.database;
+
+async function loadData() {
+  // Optimistic: read local first for instant UI
+  let local = null;
+  try {
+    const raw = typeof localStorage !== "undefined" ? localStorage.getItem(KEY) : null;
+    if (raw) local = mergeWithDefault(JSON.parse(raw));
+  } catch {}
+
+  // Then try Firebase; prefer remote if present
+  try {
+    if (hasFirebase()) {
+      const snap = await firebase.database().ref(FB_PATH).once("value");
+      const v = snap.val();
+      if (v) {
+        try { localStorage.setItem(KEY, JSON.stringify(v)); } catch {}
+        return mergeWithDefault(v);
+      }
+    }
+  } catch (e) { console.warn("Firebase load failed:", e); }
+
+  return local || DEFAULT_DATA();
+}
+
+async function saveData(d) {
+  // Always save locally for instant access
+  try {
+    if (typeof localStorage !== "undefined") {
+      localStorage.setItem(KEY, JSON.stringify(d));
+    }
+  } catch {}
+  // Sync to Firebase
+  try {
+    if (hasFirebase()) {
+      await firebase.database().ref(FB_PATH).set(d);
+    }
+  } catch (e) { console.warn("Firebase save failed:", e); }
+}
+
+function subscribeData(callback) {
+  if (!hasFirebase()) return () => {};
+  const ref = firebase.database().ref(FB_PATH);
+  const handler = (snap) => {
+    const v = snap.val();
+    if (v) {
+      try { localStorage.setItem(KEY, JSON.stringify(v)); } catch {}
+      callback(mergeWithDefault(v));
+    }
+  };
+  ref.on("value", handler);
+  return () => ref.off("value", handler);
+}
+
+/* ============================ HELPERS ============================ */
+const todayISO = () => {
+  const d = new Date();
+  const y = d.getFullYear(), m = String(d.getMonth() + 1).padStart(2, "0"), dd = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${dd}`;
+};
+
+const prettyDate = (iso) => {
+  const d = new Date(iso + "T00:00:00");
+  return d.toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" });
+};
+
+function seededRng(seedStr) {
+  let s = 0;
+  for (let i = 0; i < seedStr.length; i++) s = (s * 31 + seedStr.charCodeAt(i)) >>> 0;
+  return () => {
+    s = (s * 1664525 + 1013904223) >>> 0;
+    return s / 0xffffffff;
+  };
+}
+const pick = (arr, rng) => arr[Math.floor(rng() * arr.length)];
+const shuffle = (arr, rng) => {
+  const a = arr.slice();
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(rng() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+};
+const sample = (arr, n, rng) => shuffle(arr, rng).slice(0, n);
+
+// Voice selection: STRICTLY British English. We hard-filter to en-GB to avoid the
+// system falling back to Australian (en-AU) or American (en-US) voices, which it
+// does by default on many devices when no en-GB voice is explicitly selected.
+let _cachedVoice = null;
+let _userVoiceName = null;
+
+const setUserVoice = (name) => {
+  _userVoiceName = name || null;
+  _cachedVoice = null; // force re-pick on next speak
+};
+
+const listBritishVoices = () => {
+  if (typeof window === "undefined" || !window.speechSynthesis) return [];
+  const voices = window.speechSynthesis.getVoices() || [];
+  return voices.filter(v =>
+    v.lang === "en-GB" ||
+    v.lang === "en_GB" ||
+    /united kingdom|great britain|british|\buk english\b/i.test(v.name)
+  );
+};
+
+const _pickVoice = () => {
+  if (typeof window === "undefined" || !window.speechSynthesis) return null;
+  const voices = window.speechSynthesis.getVoices();
+  if (!voices.length) return null;
+
+  // User-chosen voice takes precedence
+  if (_userVoiceName) {
+    const userPick = voices.find(v => v.name === _userVoiceName);
+    if (userPick) return userPick;
+  }
+
+  // HARD FILTER: only true British English voices
+  const britishVoices = listBritishVoices();
+
+  // Priority within British voices - prefer high-quality female voices first
+  const preferredPatterns = [
+    /^Google UK English Female$/i,
+    /sonia.*natural/i,
+    /libby.*natural/i,
+    /microsoft hazel/i,
+    /microsoft susan/i,
+    /^Serena\b/i,
+    /^Kate\b/i,
+    /^Martha\b/i,
+    /^Stephanie\b/i,
+    /^Daniel\b/i,
+    /^Arthur\b/i,
+    /^Oliver\b/i,
+    /^Google UK English Male$/i,
+    /microsoft george/i,
+    /microsoft ryan/i,
+  ];
+  for (const pattern of preferredPatterns) {
+    const v = britishVoices.find(x => pattern.test(x.name));
+    if (v) return v;
+  }
+
+  // Any remaining British voice
+  if (britishVoices.length) return britishVoices[0];
+
+  // No British voice available - fall back to American (closer to British than Australian)
+  // but EXPLICITLY skip en-AU
+  const enUS = voices.find(v => v.lang === "en-US");
+  if (enUS) return enUS;
+  return voices.find(v => v.lang && v.lang.startsWith("en") && v.lang !== "en-AU") || null;
+};
+
+if (typeof window !== "undefined" && window.speechSynthesis) {
+  // Trigger initial voice load (voices often load asynchronously)
+  window.speechSynthesis.getVoices();
+  window.speechSynthesis.addEventListener?.("voiceschanged", () => {
+    _cachedVoice = _pickVoice();
+  });
+}
+
+const speak = (text) => {
+  if (typeof window === "undefined" || !window.speechSynthesis) return;
+  try {
+    window.speechSynthesis.cancel();
+    // Small delay so cancel completes before new utterance starts (prevents cut-offs)
+    setTimeout(() => {
+      const u = new SpeechSynthesisUtterance(text);
+      // Re-pick if we haven't got a British voice yet (voices may have loaded since)
+      if (!_cachedVoice || (_cachedVoice.lang !== "en-GB" && _cachedVoice.lang !== "en_GB")) {
+        const fresh = _pickVoice();
+        if (fresh) _cachedVoice = fresh;
+      }
+      if (_cachedVoice) {
+        u.voice = _cachedVoice;
+        u.lang = _cachedVoice.lang;
+      } else {
+        u.lang = "en-GB";
+      }
+      u.rate = 0.9;
+      u.pitch = 1.05;
+      u.volume = 1.0;
+      window.speechSynthesis.speak(u);
+    }, 60);
+  } catch {}
+};
+
+function getTerm(date = new Date()) {
+  const m = date.getMonth();
+  if (m >= 8 && m <= 11) return "autumn";
+  if (m >= 0 && m <= 3) return "spring";
+  return "summer";
+}
+
+/* ============================ SUBJECTS ============================ */
+const SUBJECTS = {
+  phonics:     { label: "Phonics",      colour: "#E07856" },
+  cew:         { label: "Tricky Words", colour: "#7B61FF" },
+  spelling:    { label: "Spelling",     colour: "#3DAA7C" },
+  punctuation: { label: "Punctuation",  colour: "#2A8AB8" },
+  grammar:     { label: "Grammar",      colour: "#D4823F" },
+  reading:     { label: "Reading",      colour: "#B8489B" },
+};
+
+/* ============================ THEMES ============================ */
+const THEMES = {
+  monsters: {
+    label: "Monsters", emoji: "👹",
+    items: [
+      { id: "m1",  emoji: "👻", name: "Boo",       price: 0 },
+      { id: "m2",  emoji: "👾", name: "Pixel",     price: 20 },
+      { id: "m3",  emoji: "👽", name: "Greeny",    price: 40 },
+      { id: "m4",  emoji: "🤖", name: "Bolt",      price: 70 },
+      { id: "m5",  emoji: "👹", name: "Hornsby",   price: 100 },
+      { id: "m6",  emoji: "👺", name: "Snouty",    price: 140 },
+      { id: "m7",  emoji: "🧟", name: "Zomby",     price: 200 },
+      { id: "m8",  emoji: "🧛", name: "Fang",      price: 260 },
+      { id: "m9",  emoji: "🧙", name: "Wizz",      price: 340 },
+      { id: "m10", emoji: "🐉", name: "Drogon",    price: 440 },
+      { id: "m11", emoji: "🐲", name: "Dragoon",   price: 560 },
+      { id: "m12", emoji: "🦄", name: "Sparky",    price: 700 },
+    ],
+  },
+  cars: {
+    label: "Cars", emoji: "🚗",
+    items: [
+      { id: "c1",  emoji: "🚙", name: "Jeep",       price: 0 },
+      { id: "c2",  emoji: "🚗", name: "Speedy",     price: 20 },
+      { id: "c3",  emoji: "🏎️", name: "Lightning", price: 40 },
+      { id: "c4",  emoji: "🚕", name: "Yellow Cab", price: 70 },
+      { id: "c5",  emoji: "🚓", name: "Officer",    price: 100 },
+      { id: "c6",  emoji: "🚑", name: "Medic",      price: 140 },
+      { id: "c7",  emoji: "🚒", name: "Blaze",      price: 200 },
+      { id: "c8",  emoji: "🚐", name: "Camper",     price: 260 },
+      { id: "c9",  emoji: "🚚", name: "Hauler",     price: 340 },
+      { id: "c10", emoji: "🚛", name: "Big Rig",    price: 440 },
+      { id: "c11", emoji: "🏍️", name: "Zoom",      price: 560 },
+      { id: "c12", emoji: "🚀", name: "Rocket",     price: 700 },
+    ],
+  },
+  dinosaurs: {
+    label: "Dinosaurs", emoji: "🦖",
+    items: [
+      { id: "d1",  emoji: "🦎", name: "Lizzy",     price: 0 },
+      { id: "d2",  emoji: "🐊", name: "Snappy",    price: 20 },
+      { id: "d3",  emoji: "🥚", name: "Eggy",      price: 40 },
+      { id: "d4",  emoji: "🦕", name: "Longneck",  price: 70 },
+      { id: "d5",  emoji: "🦖", name: "T-Rex",     price: 100 },
+      { id: "d6",  emoji: "🐉", name: "Wingster",  price: 140 },
+      { id: "d7",  emoji: "🐲", name: "Spike",     price: 200 },
+      { id: "d8",  emoji: "🦴", name: "Bones",     price: 260 },
+      { id: "d9",  emoji: "🌋", name: "Volcan",    price: 340 },
+      { id: "d10", emoji: "🦣", name: "Mammoth",   price: 440 },
+      { id: "d11", emoji: "🐢", name: "Shelly",    price: 560 },
+      { id: "d12", emoji: "🦤", name: "Dodo",      price: 700 },
+    ],
+  },
+};
+
+/* ============================ Y1 CURRICULUM DATA ============================ */
+// Year 1 Common Exception Words (UK National Curriculum)
+const Y1_CEW = [
+  "the","a","do","to","today","of","said","says","are","were","was","is","his",
+  "has","I","you","your","they","be","he","me","she","we","no","go","so","by",
+  "my","here","there","where","love","come","some","one","once","ask","friend",
+  "school","put","push","pull","full","house","our",
+];
+
+// Year 1 High-Frequency Words (Letters & Sounds list, simpler subset)
+const Y1_HFW = [
+  "about","after","an","any","as","back","because","big","but","call","came",
+  "can","could","day","did","down","first","for","from","get","good","had",
+  "have","help","her","him","home","how","into","just","last","like","look",
+  "made","make","many","more","much","must","name","new","next","not","now",
+  "off","old","on","or","out","over","ran","saw","see","take","than","that",
+  "then","these","this","three","time","took","two","up","us","very","want",
+  "way","well","went","what","when","who","will","with","would",
+];
+
+// Phase 5 vowel digraphs and trigraphs
+const PHASE5 = [
+  { g: "ai", aud: "ay",  words: ["rain","train","wait","pain","main","sail"] },
+  { g: "ay", aud: "ay",  words: ["day","play","stay","may","say","tray"] },
+  { g: "ee", aud: "ee",  words: ["tree","see","feet","week","bee","green"] },
+  { g: "ea", aud: "ee",  words: ["sea","read","beach","leaf","each","tea"] },
+  { g: "oa", aud: "oh",  words: ["boat","coat","road","goat","toast","soap"] },
+  { g: "ow", aud: "oh",  words: ["snow","grow","blow","slow","show","low"] },
+  { g: "igh",aud: "eye", words: ["light","night","right","sigh","high","fight"] },
+  { g: "ar", aud: "ar",  words: ["car","park","star","arm","hard","farm"] },
+  { g: "or", aud: "or",  words: ["fork","sort","torn","short","cork","horn"] },
+  { g: "ur", aud: "er",  words: ["fur","hurt","turn","burn","curl","surf"] },
+  { g: "oi", aud: "oy",  words: ["oil","coin","boil","spoil","join","soil"] },
+  { g: "ou", aud: "ow",  words: ["out","loud","cloud","sound","round","shout"] },
+];
+
+// Days of the week & months (capital letter rule)
+const CAPITAL_WORDS = ["Monday","Tuesday","Wednesday","London","Charlie","Freddie","England","July","Easter","Christmas","Hannah"];
+
+/* ============================ PRESCHOOL DATA ============================ */
+// Phase 2 letters (in teaching order)
+const PHASE2 = "satpinmdgockubelfhrss".split("");
+
+// Example words demonstrating each pure phonic sound. We use example-word audio cues
+// because TTS engines reliably mispronounce isolated phoneme strings (saying "A" for "ah",
+// "n-g" for "ng" etc). Letting TTS speak a real word gives the child the pure sound naturally.
+const PHONEME_EXAMPLE = {
+  s: "snake", a: "apple", t: "top", p: "pig", i: "igloo",
+  n: "nest", m: "mum", d: "dog", g: "goat", o: "octopus",
+  c: "cat", k: "king", u: "up", b: "bat", e: "egg",
+  l: "leg", f: "fish", h: "hat", r: "rain",
+};
+// Phase 3 sounds
+const PHASE3 = [
+  { g: "ch", words: ["chip","chin","chop","much"] },
+  { g: "sh", words: ["ship","shop","fish","shell"] },
+  { g: "th", words: ["this","that","thin","with"] },
+  { g: "ng", words: ["ring","sing","king","long"] },
+  { g: "ai", words: ["rain","sail","pain","wait"] },
+  { g: "ee", words: ["see","feet","bee","week"] },
+  { g: "oa", words: ["boat","goat","road","soap"] },
+  { g: "oo", words: ["look","book","good","took"] },
+];
+const CVC = ["cat","dog","pig","hat","mum","dad","sun","bed","cup","ten","big","red","fox","bus","jam","top","pet","leg","run","sit","map","tin","mud","wet","hop","nap","bag","cap","fan","kid","log","pan"];
+
+// Rhyming pairs
+const RHYMES = [
+  ["cat","hat"], ["dog","log"], ["pig","big"], ["sun","run"], ["red","bed"],
+  ["ten","hen"], ["mop","top"], ["bus","fuss"], ["fox","box"], ["jam","ham"],
+];
+
+/* ============================ Y1 QUESTION GENERATORS ============================ */
+// Each generator returns { subject, type, prompt, audio, answer, options, mode }
+// mode: "choice" (tap an option) or "type" (text input)
+
+function qPhonicsGrapheme(rng) {
+  const pair = pick(PHASE5, rng);
+  const word = pick(pair.words, rng);
+  const distractors = sample(PHASE5.filter(p => p.g !== pair.g), 3, rng).map(p => p.g);
+  return {
+    subject: "phonics",
+    type: "grapheme",
+    prompt: `Which letters make the sound in this word?`,
+    word,
+    audio: `Which letters make the sound in the word ${word}?`,
+    answer: pair.g,
+    options: shuffle([pair.g, ...distractors], rng),
+    mode: "choice",
+  };
+}
+
+function qPhonicsFindWord(rng) {
+  const pair = pick(PHASE5, rng);
+  const correct = pick(pair.words, rng);
+  const other = sample(PHASE5.filter(p => p.aud !== pair.aud), 3, rng);
+  const distractors = other.map(p => pick(p.words, rng));
+  return {
+    subject: "phonics",
+    type: "find_sound",
+    prompt: `Which word has the "${pair.g}" sound (like in ${pair.words[0]})?`,
+    audio: `Which word has the sound ${pair.aud}?`,
+    answer: correct,
+    options: shuffle([correct, ...distractors], rng),
+    mode: "choice",
+  };
+}
+
+function qCewRead(rng, pool) {
+  const target = pick(pool, rng);
+  const distractors = sample(pool.filter(w => w !== target), 3, rng);
+  return {
+    subject: "cew",
+    type: "cew_read",
+    prompt: `Find the tricky word:`,
+    audio: `Find the word ${target}.`,
+    spoken: target,
+    answer: target,
+    options: shuffle([target, ...distractors], rng),
+    mode: "choice",
+  };
+}
+
+function qCewSpell(rng, pool) {
+  const target = pick(pool.filter(w => w.length <= 5 && w !== "I"), rng);
+  return {
+    subject: "spelling",
+    type: "spell",
+    prompt: `Spell the tricky word you hear:`,
+    audio: `Spell the word ${target}.`,
+    spoken: target,
+    answer: target,
+    mode: "type",
+  };
+}
+
+function qHfwSpell(rng, pool) {
+  const target = pick(pool.filter(w => w.length <= 4), rng);
+  return {
+    subject: "spelling",
+    type: "spell_hfw",
+    prompt: `Spell this word:`,
+    audio: `Spell the word ${target}.`,
+    spoken: target,
+    answer: target,
+    mode: "type",
+  };
+}
+
+function qPlural(rng) {
+  const wordsS  = ["cat","dog","book","tree","car","hat","cup","star"];
+  const wordsEs = ["box","bus","fox","kiss","wish","glass","brush"];
+  const useEs = rng() < 0.4;
+  const w = pick(useEs ? wordsEs : wordsS, rng);
+  const correct = useEs ? w + "es" : w + "s";
+  const distractors = useEs
+    ? [w + "s", w + "ies", w + "z"]
+    : [w + "es", w + "ies", w + "z"];
+  return {
+    subject: "grammar",
+    type: "plural",
+    prompt: `Make this word mean more than one:`,
+    word: w,
+    audio: `How do you spell more than one ${w}?`,
+    answer: correct,
+    options: shuffle([correct, ...distractors], rng),
+    mode: "choice",
+  };
+}
+
+function qSuffixIng(rng) {
+  const set = [
+    { base: "jump", out: "jumping" },
+    { base: "play", out: "playing" },
+    { base: "look", out: "looking" },
+    { base: "read", out: "reading" },
+    { base: "go",   out: "going" },
+    { base: "sing", out: "singing" },
+    { base: "help", out: "helping" },
+  ];
+  const item = pick(set, rng);
+  const distractors = [
+    item.base + "ed",
+    item.base + "ying",
+    item.base + "inn",
+  ];
+  return {
+    subject: "grammar",
+    type: "suffix_ing",
+    prompt: `Add "ing" to this word:`,
+    word: item.base,
+    audio: `Add ing to the word ${item.base}.`,
+    answer: item.out,
+    options: shuffle([item.out, ...distractors], rng),
+    mode: "choice",
+  };
+}
+
+function qSuffixEd(rng) {
+  const set = [
+    { base: "jump", out: "jumped" },
+    { base: "play", out: "played" },
+    { base: "look", out: "looked" },
+    { base: "help", out: "helped" },
+    { base: "talk", out: "talked" },
+    { base: "ask",  out: "asked" },
+  ];
+  const item = pick(set, rng);
+  const distractors = [
+    item.base + "ing",
+    item.base + "id",
+    item.base + "t",
+  ];
+  return {
+    subject: "grammar",
+    type: "suffix_ed",
+    prompt: `Make this word past tense (add "ed"):`,
+    word: item.base,
+    audio: `Put the word ${item.base} into the past tense.`,
+    answer: item.out,
+    options: shuffle([item.out, ...distractors], rng),
+    mode: "choice",
+  };
+}
+
+function qPrefixUn(rng) {
+  const set = [
+    { base: "happy", meaning: "not happy" },
+    { base: "kind",  meaning: "not kind" },
+    { base: "well",  meaning: "not well" },
+    { base: "tidy",  meaning: "not tidy" },
+    { base: "safe",  meaning: "not safe" },
+  ];
+  const item = pick(set, rng);
+  const correct = "un" + item.base;
+  const distractors = [
+    "re" + item.base,
+    item.base + "less",
+    "dis" + item.base,
+  ];
+  return {
+    subject: "grammar",
+    type: "prefix_un",
+    prompt: `Which word means "${item.meaning}"?`,
+    audio: `Which word means ${item.meaning}?`,
+    answer: correct,
+    options: shuffle([correct, ...distractors], rng),
+    mode: "choice",
+  };
+}
+
+function qFullStopOrQuestion(rng) {
+  const sentences = [
+    { text: "I love my dog", end: "." },
+    { text: "What is your name", end: "?" },
+    { text: "Where do you live", end: "?" },
+    { text: "We went to the park", end: "." },
+    { text: "How old are you", end: "?" },
+    { text: "The cat sat on the mat", end: "." },
+  ];
+  const s = pick(sentences, rng);
+  return {
+    subject: "punctuation",
+    type: "punctuation_end",
+    prompt: `Which punctuation mark goes at the end?`,
+    sentence: s.text,
+    audio: `${s.text}. Which mark goes at the end?`,
+    answer: s.end,
+    options: shuffle([".", "?", "!", ","], rng),
+    mode: "choice",
+  };
+}
+
+function qExclaim(rng) {
+  const sentences = [
+    { text: "What a lovely day", end: "!" },
+    { text: "Watch out", end: "!" },
+    { text: "How funny that is", end: "!" },
+    { text: "I am six", end: "." },
+    { text: "Are you ready", end: "?" },
+  ];
+  const s = pick(sentences, rng);
+  return {
+    subject: "punctuation",
+    type: "punctuation_exclaim",
+    prompt: `Choose the right punctuation:`,
+    sentence: s.text,
+    audio: `${s.text}. Which mark fits best?`,
+    answer: s.end,
+    options: shuffle([".", "?", "!", ","], rng),
+    mode: "choice",
+  };
+}
+
+function qCapital(rng) {
+  const sentences = [
+    { words: ["we","went","to","london"], answer: 3 },
+    { words: ["i","like","apples"], answer: 0 },
+    { words: ["my","name","is","charlie"], answer: 3 },
+    { words: ["on","monday","we","played"], answer: 1 },
+    { words: ["it","is","july"], answer: 2 },
+    { words: ["she","lives","in","england"], answer: 3 },
+  ];
+  const s = pick(sentences, rng);
+  const correct = s.words[s.answer];
+  return {
+    subject: "punctuation",
+    type: "capital",
+    prompt: `Which word needs a capital letter?`,
+    audio: `Which word needs a capital letter in this sentence: ${s.words.join(" ")}`,
+    sentence: s.words.join(" "),
+    answer: correct,
+    options: shuffle(s.words, rng),
+    mode: "choice",
+  };
+}
+
+function qConjunction(rng) {
+  const set = [
+    { before: "I had toast", after: "I had juice", word: "and" },
+    { before: "I was tired", after: "I went to bed", word: "so" },
+    { before: "I like cats", after: "I love dogs more", word: "but" },
+    { before: "We ate dinner", after: "we watched a film", word: "then" },
+  ];
+  const item = pick(set, rng);
+  const distractors = ["if","because","or","when"].filter(w => w !== item.word).slice(0,3);
+  return {
+    subject: "grammar",
+    type: "conjunction",
+    prompt: `Which word joins these sentences?`,
+    sentence: `${item.before} ___ ${item.after}.`,
+    audio: `${item.before}, blank, ${item.after}.`,
+    answer: item.word,
+    options: shuffle([item.word, ...distractors], rng),
+    mode: "choice",
+  };
+}
+
+function qWordClass(rng) {
+  const set = [
+    { text: ["The","cat","runs","fast"], type: "verb",      answer: "runs" },
+    { text: ["A","big","dog","barked"],  type: "adjective", answer: "big" },
+    { text: ["The","red","car","stops"], type: "noun",      answer: "car" },
+    { text: ["My","mum","is","happy"],   type: "adjective", answer: "happy" },
+    { text: ["The","boy","plays","ball"],type: "verb",      answer: "plays" },
+    { text: ["I","saw","a","star"],      type: "noun",      answer: "star" },
+  ];
+  const item = pick(set, rng);
+  return {
+    subject: "grammar",
+    type: "word_class",
+    prompt: `Which word is a ${item.type}?`,
+    sentence: item.text.join(" "),
+    audio: `In this sentence: ${item.text.join(" ")}. Which word is a ${item.type}?`,
+    answer: item.answer,
+    options: shuffle(item.text, rng),
+    mode: "choice",
+  };
+}
+
+function qCewMissing(rng, pool) {
+  const target = pick(pool.filter(w => w.length >= 3 && w !== "I"), rng);
+  const idx = 1; // hide 2nd letter
+  const hidden = target[idx];
+  const shown = target.slice(0, idx) + "_" + target.slice(idx + 1);
+  return {
+    subject: "cew",
+    type: "cew_missing",
+    prompt: `Fill in the missing letter:`,
+    word: shown,
+    full: target,
+    audio: `What letter is missing in the word ${target}?`,
+    answer: hidden,
+    mode: "type",
+  };
+}
+
+/* ============================ PRESCHOOL QUESTION GENERATORS ============================ */
+function qLetterName(rng) {
+  const letter = pick(PHASE2, rng);
+  const distractors = sample(PHASE2.filter(l => l !== letter), 3, rng);
+  const example = PHONEME_EXAMPLE[letter] || letter;
+  return {
+    subject: "phonics",
+    type: "letter_name",
+    prompt: `Which letter makes the sound at the start of "${example}"?`,
+    audio: `Which letter makes the sound at the start of ${example}?`,
+    answer: letter,
+    options: shuffle([letter, ...distractors], rng),
+    mode: "choice",
+  };
+}
+
+function qInitialSound(rng) {
+  const word = pick(CVC, rng);
+  const initial = word[0];
+  const distractors = sample("satpinmdgockubelfhr".split("").filter(l => l !== initial), 3, rng);
+  return {
+    subject: "phonics",
+    type: "initial_sound",
+    prompt: `What letter does this word start with?`,
+    word,
+    audio: `What letter does the word ${word} start with?`,
+    answer: initial,
+    options: shuffle([initial, ...distractors], rng),
+    mode: "choice",
+  };
+}
+
+function qCvcRead(rng) {
+  const target = pick(CVC, rng);
+  const distractors = sample(CVC.filter(w => w !== target), 3, rng);
+  return {
+    subject: "reading",
+    type: "cvc_read",
+    prompt: `Which word is this?`,
+    audio: `Which word says ${target}?`,
+    spoken: target,
+    answer: target,
+    options: shuffle([target, ...distractors], rng),
+    mode: "choice",
+  };
+}
+
+function qRhyme(rng) {
+  const [a, b] = pick(RHYMES, rng);
+  const otherPairs = RHYMES.filter(p => !p.includes(a));
+  const distractors = sample(otherPairs, 3, rng).map(p => p[0]);
+  return {
+    subject: "reading",
+    type: "rhyme",
+    prompt: `Which word rhymes with "${a}"?`,
+    audio: `Which word rhymes with ${a}?`,
+    answer: b,
+    options: shuffle([b, ...distractors], rng),
+    mode: "choice",
+  };
+}
+
+function qPhase3Sound(rng) {
+  const pair = pick(PHASE3, rng);
+  const word = pick(pair.words, rng);
+  const distractors = sample(PHASE3.filter(p => p.g !== pair.g), 3, rng).map(p => p.g);
+  return {
+    subject: "phonics",
+    type: "phase3",
+    prompt: `Which sound do you hear in this word?`,
+    word,
+    audio: `Which sound do you hear in the word ${word}?`,
+    answer: pair.g,
+    options: shuffle([pair.g, ...distractors], rng),
+    mode: "choice",
+  };
+}
+
+/* ============================ DAY GENERATION ============================ */
+function generateY1Day(rng, term) {
+  // CEW pool grows through the year
+  let cewPool;
+  if (term === "autumn") {
+    cewPool = ["the","a","do","to","of","said","I","you","be","he","me","she","we","no","go","so","my","is","was"];
+  } else if (term === "spring") {
+    cewPool = Y1_CEW.slice(0, 30);
+  } else {
+    cewPool = Y1_CEW;
+  }
+
+  // Pools of question generators per term
+  const generators = [
+    () => qPhonicsGrapheme(rng),
+    () => qPhonicsFindWord(rng),
+    () => qCewRead(rng, cewPool),
+    () => qCewSpell(rng, cewPool),
+    () => qHfwSpell(rng, Y1_HFW),
+    () => qFullStopOrQuestion(rng),
+    () => qCapital(rng),
+  ];
+  if (term !== "autumn") {
+    generators.push(() => qPlural(rng));
+    generators.push(() => qSuffixIng(rng));
+    generators.push(() => qCewMissing(rng, cewPool));
+  }
+  if (term === "summer") {
+    generators.push(() => qSuffixEd(rng));
+    generators.push(() => qPrefixUn(rng));
+    generators.push(() => qExclaim(rng));
+    generators.push(() => qConjunction(rng));
+    generators.push(() => qWordClass(rng));
+  }
+
+  // 10 main questions, varied across generators
+  const main = [];
+  const shuffled = shuffle(generators, rng);
+  // Cycle through generators ensuring variety
+  for (let i = 0; i < 10; i++) {
+    const gen = shuffled[i % shuffled.length];
+    main.push(gen());
+  }
+
+  // 2 challenger questions (push into the next stretch)
+  let challenger;
+  if (term === "autumn") {
+    challenger = [qPlural(rng), qSuffixIng(rng)];
+  } else if (term === "spring") {
+    challenger = [qPrefixUn(rng), qWordClass(rng)];
+  } else {
+    challenger = [qWordClass(rng), qConjunction(rng)];
+  }
+
+  return [
+    ...main.map((q, i) => ({ ...q, idx: i, challenger: false })),
+    ...challenger.map((q, i) => ({ ...q, idx: 10 + i, challenger: true })),
+  ];
+}
+
+function generatePreschoolDay(rng, term) {
+  const generators = [
+    () => qLetterName(rng),
+    () => qInitialSound(rng),
+  ];
+  if (term !== "autumn") {
+    generators.push(() => qCvcRead(rng));
+    generators.push(() => qRhyme(rng));
+  }
+  if (term === "summer") {
+    generators.push(() => qPhase3Sound(rng));
+  }
+
+  const main = [];
+  const shuffled = shuffle(generators, rng);
+  for (let i = 0; i < 8; i++) { // 8 questions for preschool, smaller dose
+    const gen = shuffled[i % shuffled.length];
+    main.push(gen());
+  }
+  // 2 challenger
+  const challenger = term === "autumn"
+    ? [qCvcRead(rng), qRhyme(rng)]
+    : [qPhase3Sound(rng), qCvcRead(rng)];
+
+  return [
+    ...main.map((q, i) => ({ ...q, idx: i, challenger: false })),
+    ...challenger.map((q, i) => ({ ...q, idx: 8 + i, challenger: true })),
+  ];
+}
+
+function generateDay(profile, dateISO) {
+  const rng = seededRng(`${profile.id}-${dateISO}`);
+  const term = getTerm(new Date(dateISO + "T00:00:00"));
+  return profile.year === "year1"
+    ? generateY1Day(rng, term)
+    : generatePreschoolDay(rng, term);
+}
+
+/* ============================ UI: ROOT ============================ */
+function App() {
+  const [data, setData] = useState(null);
+  const [view, setView] = useState("home"); // home | practice | results | collection | settings
+  const [ready, setReady] = useState(false);
+
+  useEffect(() => {
+    let mounted = true;
+    loadData().then(d => { if (mounted) { setData(d); setReady(true); } });
+    // Subscribe to remote changes for cross-device sync
+    const unsub = subscribeData((d) => {
+      if (mounted) {
+        // Only update if the data is meaningfully newer (avoid feedback loops)
+        setData(prev => {
+          if (!prev) return d;
+          if (JSON.stringify(prev) === JSON.stringify(d)) return prev;
+          return d;
+        });
+      }
+    });
+    return () => { mounted = false; unsub(); };
+  }, []);
+
+  // Sync user-selected voice name with the speech module
+  useEffect(() => {
+    if (data) setUserVoice(data.voiceName || null);
+  }, [data && data.voiceName]);
+
+  const persist = (next) => {
+    setData(next);
+    saveData(next);
+  };
+  const activeProfile = data && data.activeId ? data.profiles[data.activeId] : null;
+
+  if (!ready) return <div style={{ minHeight: "100vh", background: "#F5EFE6" }} />;
+
+  return (
+    <div style={S.shell}>
+      <style>{cssReset}</style>
+      {!activeProfile ? (
+        <ProfilePicker data={data} onPick={(id) => persist({ ...data, activeId: id })} />
+      ) : (
+        <>
+          <Header profile={activeProfile} onSwitch={() => persist({ ...data, activeId: null })} />
+          {view === "home" && <HomeView profile={activeProfile} data={data} setData={persist} onStart={() => setView("practice")} setView={setView} />}
+          {view === "practice" && <PracticeView profile={activeProfile} data={data} setData={persist} onDone={() => setView("home")} />}
+          {view === "results" && <ResultsView profile={activeProfile} onBack={() => setView("home")} />}
+          {view === "collection" && <CollectionView profile={activeProfile} data={data} setData={persist} onBack={() => setView("home")} />}
+          {view === "settings" && <SettingsView profile={activeProfile} data={data} setData={persist} onBack={() => setView("home")} />}
+          {view !== "practice" && <BottomNav view={view} setView={setView} />}
+        </>
+      )}
+    </div>
+  );
+}
+
+/* ============================ HEADER ============================ */
+function Header({ profile, onSwitch }) {
+  const theme = THEMES[profile.theme];
+  return (
+    <div style={S.header}>
+      <button onClick={onSwitch} style={S.headerBtn}>
+        <Users size={18} /> <span style={{ marginLeft: 6 }}>Switch</span>
+      </button>
+      <div style={S.headerTitle}>
+        <span style={{ fontSize: 22 }}>{theme.emoji}</span>
+        <span>{profile.name}'s English</span>
+      </div>
+      <div style={S.headerStats}>
+        <Flame size={14} color="#E07856" /> <span style={{ marginLeft: 3 }}>{profile.streak}</span>
+        <span style={{ marginLeft: 10 }}><Star size={14} color="#D4A04A" /></span>
+        <span style={{ marginLeft: 3 }}>{profile.points}</span>
+      </div>
+    </div>
+  );
+}
+
+/* ============================ PROFILE PICKER ============================ */
+function ProfilePicker({ data, onPick }) {
+  return (
+    <div style={S.pickerWrap}>
+      <div style={S.pickerInner}>
+        <div style={S.pickerTitle}>Daily English</div>
+        <div style={S.pickerSub}>Who's reading today?</div>
+        <div style={S.pickerGrid}>
+          {Object.values(data.profiles).map(p => {
+            const theme = THEMES[p.theme];
+            return (
+              <button key={p.id} onClick={() => onPick(p.id)} style={S.pickerCard}>
+                <div style={{ fontSize: 56, marginBottom: 8 }}>{theme.emoji}</div>
+                <div style={S.pickerName}>{p.name}</div>
+                <div style={S.pickerYear}>{p.year === "year1" ? "Year 1" : "Preschool"}</div>
+                <div style={S.pickerPoints}>
+                  <Star size={12} color="#D4A04A" /> <span style={{ marginLeft: 4 }}>{p.points}</span>
+                  <span style={{ marginLeft: 10 }}><Flame size={12} color="#E07856" /></span>
+                  <span style={{ marginLeft: 4 }}>{p.streak}</span>
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ============================ HOME ============================ */
+function HomeView({ profile, data, setData, onStart, setView }) {
+  const today = todayISO();
+  const todayDone = profile.days && profile.days[today];
+  const term = getTerm();
+  const termLabel = { autumn: "Autumn term", spring: "Spring term", summer: "Summer term" }[term];
+  const fav = profile.favourite ? THEMES[profile.theme].items.find(i => i.id === profile.favourite) : null;
+  const defaultItem = THEMES[profile.theme].items[0];
+  const showItem = fav || defaultItem;
+
+  return (
+    <div style={S.body}>
+      <div style={S.dateRow}>{prettyDate(today)}</div>
+
+      <div style={S.heroCard}>
+        <div style={{ fontSize: 88, lineHeight: 1 }}>{showItem.emoji}</div>
+        <div style={S.heroName}>{showItem.name}</div>
+        <div style={S.heroTag}>Your {THEMES[profile.theme].label.toLowerCase().replace(/s$/, "")}</div>
+      </div>
+
+      <div style={S.termBadge}>
+        <BookOpen size={14} /> <span style={{ marginLeft: 6 }}>{profile.year === "year1" ? "Year 1" : "Preschool"} · {termLabel}</span>
+      </div>
+
+      {todayDone ? (
+        <div style={S.doneCard}>
+          <div style={{ fontWeight: 700, fontSize: 18, marginBottom: 4 }}>Done for today!</div>
+          <div style={{ color: "#5a6b5f" }}>You scored {todayDone.score}/{todayDone.total}</div>
+          <button style={{ ...S.bigBtn, marginTop: 16, background: "#143232" }} onClick={onStart}>
+            <RotateCcw size={18} /> <span style={{ marginLeft: 8 }}>Practise again</span>
+          </button>
+        </div>
+      ) : (
+        <button style={S.bigBtn} onClick={onStart}>
+          <Sparkles size={20} /> <span style={{ marginLeft: 8 }}>Start today's English</span>
+        </button>
+      )}
+
+      <div style={S.quickRow}>
+        <button style={S.quickBtn} onClick={() => setView("results")}>
+          <BarChart3 size={18} />
+          <div style={S.quickLabel}>Results</div>
+        </button>
+        <button style={S.quickBtn} onClick={() => setView("collection")}>
+          <Trophy size={18} />
+          <div style={S.quickLabel}>Collection</div>
+        </button>
+        <button style={S.quickBtn} onClick={() => setView("settings")}>
+          <Cog size={18} />
+          <div style={S.quickLabel}>Settings</div>
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/* ============================ PRACTICE ============================ */
+function PracticeView({ profile, data, setData, onDone }) {
+  const today = todayISO();
+  const [extraSeed, setExtraSeed] = useState(0);
+  const questions = useMemo(() => generateDay(profile, today + (extraSeed ? "-x" + extraSeed : "")), [profile.id, profile.year, today, extraSeed]);
+  const [idx, setIdx] = useState(0);
+  const [answers, setAnswers] = useState({});
+  const [typed, setTyped] = useState("");
+  const [showFeedback, setShowFeedback] = useState(false);
+  const inputRef = useRef(null);
+  const q = questions[idx];
+  const isExtra = extraSeed > 0;
+
+  useEffect(() => {
+    if (q && q.audio) speak(q.audio);
+    setTyped("");
+    setShowFeedback(false);
+    if (q && q.mode === "type" && inputRef.current) {
+      setTimeout(() => inputRef.current && inputRef.current.focus(), 100);
+    }
+  }, [idx, extraSeed]);
+
+  if (!q) {
+    return <DoneScreen profile={profile} data={data} setData={setData} answers={answers} questions={questions} onDone={onDone} isExtra={isExtra} onExtra={() => { setExtraSeed(extraSeed + 1); setIdx(0); setAnswers({}); }} />;
+  }
+
+  const handleChoice = (option) => {
+    const correct = option === q.answer;
+    const newAnswers = { ...answers, [idx]: { value: option, correct } };
+    setAnswers(newAnswers);
+    setShowFeedback(true);
+    setTimeout(() => {
+      setShowFeedback(false);
+      setIdx(idx + 1);
+    }, 900);
+  };
+
+  const handleType = () => {
+    if (!typed.trim()) return;
+    const correct = typed.trim().toLowerCase() === String(q.answer).toLowerCase();
+    const newAnswers = { ...answers, [idx]: { value: typed.trim(), correct } };
+    setAnswers(newAnswers);
+    setShowFeedback(true);
+    setTimeout(() => {
+      setShowFeedback(false);
+      setIdx(idx + 1);
+    }, 1100);
+  };
+
+  const total = questions.length;
+  const pct = Math.round((idx / total) * 100);
+  const score = Object.values(answers).filter(a => a.correct).length;
+
+  return (
+    <div style={S.body}>
+      <div style={S.practiceTop}>
+        <div style={S.progressBar}>
+          <div style={{ ...S.progressFill, width: `${pct}%` }} />
+        </div>
+        <div style={S.progressLabel}>Question {idx + 1} of {total}</div>
+      </div>
+
+      {q.challenger && (
+        <div style={S.challengerBadge}>
+          <Sparkles size={12} /> <span style={{ marginLeft: 4 }}>Challenger question</span>
+        </div>
+      )}
+
+      <div style={S.subjectChip} >
+        <span style={{ ...S.subjectDot, background: SUBJECTS[q.subject].colour }} />
+        {SUBJECTS[q.subject].label}
+      </div>
+
+      <div style={S.qCard}>
+        <div style={S.qPrompt}>
+          {q.prompt}
+          <button style={S.speakBtn} onClick={() => speak(q.audio || q.prompt)}>
+            <Volume2 size={18} />
+          </button>
+        </div>
+
+        {q.bigChar && (
+          <div style={S.bigChar}>{q.bigChar}</div>
+        )}
+        {q.word && !q.bigChar && (
+          <div style={S.wordBox}>{q.word}</div>
+        )}
+        {q.sentence && (
+          <div style={S.sentenceBox}>"{q.sentence}"</div>
+        )}
+        {q.spoken && q.mode === "type" && !q.word && !q.sentence && (
+          <button style={S.hearBtn} onClick={() => speak(q.spoken)}>
+            <Volume2 size={16} /> <span style={{ marginLeft: 6 }}>Hear it again</span>
+          </button>
+        )}
+
+        {q.mode === "choice" && (
+          <div style={S.choicesGrid}>
+            {q.options.map((opt, i) => {
+              const isAnswered = showFeedback && answers[idx] && answers[idx].value === opt;
+              const isCorrect = showFeedback && opt === q.answer && answers[idx];
+              return (
+                <button
+                  key={i}
+                  onClick={() => !showFeedback && handleChoice(opt)}
+                  disabled={showFeedback}
+                  style={{
+                    ...S.choiceBtn,
+                    ...(isCorrect ? S.choiceCorrect : {}),
+                    ...(isAnswered && !answers[idx].correct ? S.choiceWrong : {}),
+                  }}
+                >
+                  {opt}
+                </button>
+              );
+            })}
+          </div>
+        )}
+
+        {q.mode === "type" && (
+          <div style={{ marginTop: 18 }}>
+            <input
+              ref={inputRef}
+              value={typed}
+              onChange={(e) => setTyped(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && handleType()}
+              placeholder="Type your answer"
+              autoCapitalize="none"
+              autoCorrect="off"
+              spellCheck="false"
+              style={S.typeInput}
+            />
+            <button onClick={handleType} disabled={showFeedback} style={S.submitBtn}>
+              Check answer
+            </button>
+            {showFeedback && answers[idx] && (
+              <div style={{ ...S.feedback, color: answers[idx].correct ? "#1a6d4a" : "#a23030", marginTop: 12 }}>
+                {answers[idx].correct ? (
+                  <><Check size={16} /> <span style={{ marginLeft: 6 }}>Brilliant!</span></>
+                ) : (
+                  <><X size={16} /> <span style={{ marginLeft: 6 }}>The answer was "{q.answer}"</span></>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      <div style={S.scorePill}>
+        <Star size={14} color="#D4A04A" />
+        <span style={{ marginLeft: 6 }}>{score} correct so far</span>
+      </div>
+    </div>
+  );
+}
+
+/* ============================ DONE SCREEN ============================ */
+function DoneScreen({ profile, data, setData, answers, questions, onDone, onExtra, isExtra }) {
+  const total = questions.length;
+  const score = Object.values(answers).filter(a => a.correct).length;
+  const pct = Math.round((score / total) * 100);
+
+  // Update data once
+  useEffect(() => {
+    const today = todayISO();
+    const alreadyDone = profile.days && profile.days[today];
+    // If this is a fresh first-of-day run AND day already saved, skip (re-render guard)
+    if (!isExtra && alreadyDone) return;
+
+    // Per-subject tally
+    const perSubject = {};
+    questions.forEach((q, i) => {
+      const sub = q.subject;
+      if (!perSubject[sub]) perSubject[sub] = { attempts: 0, correct: 0 };
+      perSubject[sub].attempts += 1;
+      if (answers[i] && answers[i].correct) perSubject[sub].correct += 1;
+    });
+
+    // Aggregate into profile subjects
+    const subjects = { ...(profile.subjects || {}) };
+    for (const [k, v] of Object.entries(perSubject)) {
+      if (!subjects[k]) subjects[k] = { attempts: 0, correct: 0 };
+      subjects[k].attempts += v.attempts;
+      subjects[k].correct += v.correct;
+    }
+
+    let earned, streak, lastDate, days;
+    if (isExtra) {
+      // Bonus practice: 2 points per correct, no day bonus, streak/day unchanged
+      earned = score * 2;
+      streak = profile.streak || 0;
+      lastDate = profile.lastDate;
+      days = profile.days || {};
+    } else {
+      const challengerCorrect = questions.filter((q, i) => q.challenger && answers[i] && answers[i].correct).length;
+      earned = score * 5 + 10 + challengerCorrect * 5;
+      // Streak
+      const yesterday = new Date(); yesterday.setDate(yesterday.getDate() - 1);
+      const yISO = (() => {
+        const y = yesterday.getFullYear(), m = String(yesterday.getMonth() + 1).padStart(2, "0"), dd = String(yesterday.getDate()).padStart(2, "0");
+        return `${y}-${m}-${dd}`;
+      })();
+      streak = profile.streak || 0;
+      if (profile.lastDate === yISO) streak += 1;
+      else if (profile.lastDate === today) {} // unchanged
+      else streak = 1;
+      lastDate = today;
+      days = { ...(profile.days || {}), [today]: { score, total, finishedAt: new Date().toISOString(), perSubject, earned } };
+    }
+
+    const next = {
+      ...data,
+      profiles: {
+        ...data.profiles,
+        [profile.id]: {
+          ...profile,
+          points: (profile.points || 0) + earned,
+          streak, lastDate, subjects, days,
+        },
+      },
+    };
+    setData(next);
+  }, []);
+
+  const earnedPoints = isExtra ? score * 2 : score * 5 + 10;
+
+  return (
+    <div style={S.body}>
+      <div style={S.doneTitle}>{pct >= 80 ? "Amazing work!" : pct >= 50 ? "Good job!" : "Keep going!"}</div>
+      <div style={S.doneBig}>{score}/{total}</div>
+      <div style={S.doneSub}>{pct}% correct{isExtra ? " · bonus round" : ""}</div>
+
+      <div style={S.doneEmoji}>{THEMES[profile.theme].items[0].emoji}</div>
+
+      <div style={S.doneCard2}>
+        <div style={{ fontWeight: 700, marginBottom: 6 }}>You earned</div>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22, fontWeight: 700, color: "#D4A04A" }}>
+          <Star size={20} color="#D4A04A" /> <span style={{ marginLeft: 8 }}>{earnedPoints}{isExtra ? "" : "+"} points</span>
+        </div>
+      </div>
+
+      <button onClick={onExtra} style={S.bigBtn}>
+        <Pencil size={18} /> <span style={{ marginLeft: 8 }}>More practice</span>
+      </button>
+      <button onClick={onDone} style={{ ...S.bigBtn, background: "#143232", marginTop: 12 }}>
+        <HomeIcon size={18} /> <span style={{ marginLeft: 8 }}>Back home</span>
+      </button>
+    </div>
+  );
+}
+
+/* ============================ RESULTS ============================ */
+function ResultsView({ profile, onBack }) {
+  const subjects = profile.subjects || {};
+  const days = profile.days || {};
+  const dayCount = Object.keys(days).length;
+  const totalCorrect = Object.values(days).reduce((s, d) => s + (d.score || 0), 0);
+  const totalQuestions = Object.values(days).reduce((s, d) => s + (d.total || 0), 0);
+
+  // Sort subjects by accuracy
+  const subjectRows = Object.entries(SUBJECTS).map(([key, meta]) => {
+    const s = subjects[key];
+    const acc = s && s.attempts > 0 ? Math.round((s.correct / s.attempts) * 100) : null;
+    return { key, meta, attempts: s ? s.attempts : 0, correct: s ? s.correct : 0, acc };
+  });
+
+  const bestRow = subjectRows.filter(r => r.acc !== null).sort((a, b) => b.acc - a.acc)[0];
+  const workRow = subjectRows.filter(r => r.acc !== null && r.attempts >= 5).sort((a, b) => a.acc - b.acc)[0];
+
+  // Last 14 days for streak chart
+  const last14 = [];
+  for (let i = 13; i >= 0; i--) {
+    const d = new Date(); d.setDate(d.getDate() - i);
+    const iso = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+    last14.push({ iso, day: d.toLocaleDateString("en-GB", { weekday: "narrow" }), done: !!days[iso], score: days[iso] ? days[iso].score : 0, total: days[iso] ? days[iso].total : 0 });
+  }
+
+  return (
+    <div style={S.body}>
+      <button onClick={onBack} style={S.backBtn}><ArrowLeft size={16} /> <span style={{ marginLeft: 6 }}>Home</span></button>
+      <div style={S.pageTitle}>Results</div>
+
+      <div style={S.statsRow}>
+        <div style={S.statBox}>
+          <div style={S.statNum}>{dayCount}</div>
+          <div style={S.statLabel}>Days done</div>
+        </div>
+        <div style={S.statBox}>
+          <div style={S.statNum}>{totalQuestions > 0 ? Math.round((totalCorrect / totalQuestions) * 100) : 0}%</div>
+          <div style={S.statLabel}>Overall</div>
+        </div>
+        <div style={S.statBox}>
+          <div style={S.statNum}>{profile.streak || 0}</div>
+          <div style={S.statLabel}>Streak</div>
+        </div>
+      </div>
+
+      {(bestRow || workRow) && (
+        <div style={S.insightCard}>
+          {bestRow && (
+            <div style={{ marginBottom: workRow ? 10 : 0 }}>
+              <div style={S.insightLabel}>You're great at</div>
+              <div style={S.insightValue}>
+                <span style={{ ...S.subjectDot, background: bestRow.meta.colour }} />
+                {bestRow.meta.label} ({bestRow.acc}%)
+              </div>
+            </div>
+          )}
+          {workRow && workRow.key !== (bestRow && bestRow.key) && (
+            <div>
+              <div style={S.insightLabel}>Let's work on</div>
+              <div style={S.insightValue}>
+                <span style={{ ...S.subjectDot, background: workRow.meta.colour }} />
+                {workRow.meta.label} ({workRow.acc}%)
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      <div style={S.sectionTitle}>By subject</div>
+      <div>
+        {subjectRows.map((r) => (
+          <div key={r.key} style={S.subjectRow}>
+            <div style={{ display: "flex", alignItems: "center", marginBottom: 6 }}>
+              <span style={{ ...S.subjectDot, background: r.meta.colour }} />
+              <span style={{ fontWeight: 600, flex: 1 }}>{r.meta.label}</span>
+              <span style={{ color: "#5a6b5f", fontSize: 13 }}>
+                {r.attempts > 0 ? `${r.correct}/${r.attempts}` : "Not yet"}
+              </span>
+            </div>
+            <div style={S.barTrack}>
+              <div style={{ ...S.barFill, width: r.acc !== null ? `${r.acc}%` : "0%", background: r.meta.colour }} />
+            </div>
+            {r.acc !== null && (
+              <div style={{ fontSize: 12, color: "#5a6b5f", marginTop: 4 }}>{r.acc}%</div>
+            )}
+          </div>
+        ))}
+      </div>
+
+      <div style={S.sectionTitle}>Last 14 days</div>
+      <div style={S.calRow}>
+        {last14.map(d => (
+          <div key={d.iso} style={S.calDay}>
+            <div style={{
+              ...S.calDot,
+              background: d.done ? (d.score / d.total >= 0.8 ? "#3DAA7C" : d.score / d.total >= 0.5 ? "#D4A04A" : "#E07856") : "#E5DDC9",
+            }}>{d.done ? d.score : ""}</div>
+            <div style={S.calLabel}>{d.day}</div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* ============================ COLLECTION ============================ */
+function CollectionView({ profile, data, setData, onBack }) {
+  const theme = THEMES[profile.theme];
+
+  const buy = (item) => {
+    if (profile.collection.includes(item.id)) return;
+    if ((profile.points || 0) < item.price) return;
+    const next = {
+      ...data,
+      profiles: {
+        ...data.profiles,
+        [profile.id]: {
+          ...profile,
+          points: (profile.points || 0) - item.price,
+          collection: [...profile.collection, item.id],
+          favourite: profile.favourite || item.id,
+        },
+      },
+    };
+    setData(next);
+  };
+
+  const setFavourite = (id) => {
+    if (!profile.collection.includes(id)) return;
+    const next = {
+      ...data,
+      profiles: {
+        ...data.profiles,
+        [profile.id]: { ...profile, favourite: id },
+      },
+    };
+    setData(next);
+  };
+
+  return (
+    <div style={S.body}>
+      <button onClick={onBack} style={S.backBtn}><ArrowLeft size={16} /> <span style={{ marginLeft: 6 }}>Home</span></button>
+      <div style={S.pageTitle}>{theme.label} Collection</div>
+      <div style={S.subTitle}>
+        Earn <Star size={14} color="#D4A04A" style={{ display: "inline", verticalAlign: "middle" }} /> points by practising. Tap to unlock or set as favourite.
+      </div>
+      <div style={S.collGrid}>
+        {theme.items.map(item => {
+          const owned = profile.collection.includes(item.id);
+          const isFav = profile.favourite === item.id;
+          const canAfford = (profile.points || 0) >= item.price;
+          return (
+            <div key={item.id} style={{
+              ...S.collCard,
+              ...(isFav ? S.collFav : {}),
+              opacity: owned || canAfford ? 1 : 0.55,
+            }}>
+              <div style={{ fontSize: 44, lineHeight: 1 }}>{owned ? item.emoji : "❓"}</div>
+              <div style={S.collName}>{owned ? item.name : "Locked"}</div>
+              {owned ? (
+                <button
+                  onClick={() => setFavourite(item.id)}
+                  style={{ ...S.collBtn, background: isFav ? "#143232" : "transparent", color: isFav ? "#fff" : "#143232" }}
+                >
+                  {isFav ? "Favourite" : "Pick"}
+                </button>
+              ) : (
+                <button
+                  onClick={() => buy(item)}
+                  disabled={!canAfford}
+                  style={{ ...S.collBtn, background: canAfford ? "#D4A04A" : "#E5DDC9", color: "#143232" }}
+                >
+                  {canAfford ? <><Star size={11} color="#143232" /> <span style={{ marginLeft: 4 }}>{item.price}</span></> : <><Lock size={11} /> <span style={{ marginLeft: 4 }}>{item.price}</span></>}
+                </button>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+/* ============================ SETTINGS ============================ */
+function SettingsView({ profile, data, setData, onBack }) {
+  const [britishVoices, setBritishVoices] = useState([]);
+
+  useEffect(() => {
+    const refresh = () => setBritishVoices(listBritishVoices());
+    refresh();
+    if (typeof window !== "undefined" && window.speechSynthesis) {
+      window.speechSynthesis.addEventListener?.("voiceschanged", refresh);
+      return () => window.speechSynthesis.removeEventListener?.("voiceschanged", refresh);
+    }
+  }, []);
+
+  const setTheme = (theme) => {
+    const next = {
+      ...data,
+      profiles: {
+        ...data.profiles,
+        [profile.id]: { ...profile, theme, favourite: null },
+      },
+    };
+    setData(next);
+  };
+  const setYear = (year) => {
+    const next = {
+      ...data,
+      profiles: {
+        ...data.profiles,
+        [profile.id]: { ...profile, year },
+      },
+    };
+    setData(next);
+  };
+  const reset = () => {
+    if (!window.confirm(`Reset all progress for ${profile.name}? This cannot be undone.`)) return;
+    const next = {
+      ...data,
+      profiles: {
+        ...data.profiles,
+        [profile.id]: newProfile(profile.id, profile.name, profile.year, profile.theme),
+      },
+    };
+    setData(next);
+  };
+
+  return (
+    <div style={S.body}>
+      <button onClick={onBack} style={S.backBtn}><ArrowLeft size={16} /> <span style={{ marginLeft: 6 }}>Home</span></button>
+      <div style={S.pageTitle}>Settings · {profile.name}</div>
+
+      <div style={S.sectionTitle}>Reward theme</div>
+      <div style={S.themeRow}>
+        {Object.entries(THEMES).map(([k, t]) => (
+          <button key={k} onClick={() => setTheme(k)} style={{ ...S.themeBtn, ...(profile.theme === k ? S.themeBtnOn : {}) }}>
+            <div style={{ fontSize: 32 }}>{t.emoji}</div>
+            <div style={{ fontWeight: 600, marginTop: 4 }}>{t.label}</div>
+          </button>
+        ))}
+      </div>
+
+      <div style={S.sectionTitle}>Year group</div>
+      <div style={S.themeRow}>
+        <button onClick={() => setYear("preschool")} style={{ ...S.themeBtn, ...(profile.year === "preschool" ? S.themeBtnOn : {}) }}>
+          <div style={{ fontWeight: 600 }}>Preschool</div>
+          <div style={{ fontSize: 11, color: "#5a6b5f", marginTop: 2 }}>Letters & sounds</div>
+        </button>
+        <button onClick={() => setYear("year1")} style={{ ...S.themeBtn, ...(profile.year === "year1" ? S.themeBtnOn : {}) }}>
+          <div style={{ fontWeight: 600 }}>Year 1</div>
+          <div style={{ fontSize: 11, color: "#5a6b5f", marginTop: 2 }}>Phonics & SPaG</div>
+        </button>
+      </div>
+
+      <div style={S.sectionTitle}>Reading voice</div>
+      <div style={{ ...S.insightCard, marginTop: 8 }}>
+        {britishVoices.length === 0 ? (
+          <div style={{ fontSize: 13, color: "#5a6b5f" }}>
+            No British voices found on this device. Try installing an "English (United Kingdom)" voice in your phone's accessibility or language settings, then reload the app.
+          </div>
+        ) : (
+          <>
+            <div style={{ fontSize: 13, color: "#5a6b5f", marginBottom: 8 }}>Pick a voice from those installed on this device:</div>
+            <select
+              value={data.voiceName || ""}
+              onChange={(e) => setData({ ...data, voiceName: e.target.value || null })}
+              style={S.select}
+            >
+              <option value="">Auto (best British voice)</option>
+              {britishVoices.map(v => (
+                <option key={v.name} value={v.name}>{v.name}</option>
+              ))}
+            </select>
+            <button onClick={() => speak("Hello! Let's practise some English together.")} style={{ ...S.testVoiceBtn, marginTop: 10 }}>
+              <Volume2 size={14} /> <span style={{ marginLeft: 6 }}>Test voice</span>
+            </button>
+          </>
+        )}
+      </div>
+
+      <div style={S.sectionTitle}>Term</div>
+      <div style={{ ...S.insightCard, marginTop: 8 }}>
+        <div style={{ fontSize: 14, color: "#5a6b5f" }}>The questions get harder through the year:</div>
+        <div style={{ marginTop: 8, fontSize: 14 }}>
+          <strong>Autumn</strong>: introduces phonics and the first batch of tricky words.<br />
+          <strong>Spring</strong>: adds plurals, "-ing", question marks and more tricky words.<br />
+          <strong>Summer</strong>: adds "-ed", "un-", "!", grammar and word classes.
+        </div>
+        <div style={{ marginTop: 8, fontSize: 13, color: "#5a6b5f" }}>Currently: <strong>{ {autumn: "Autumn", spring: "Spring", summer: "Summer"}[getTerm()] } term</strong> (auto-detected from today's date).</div>
+      </div>
+
+      <div style={{ marginTop: 24 }}>
+        <button onClick={reset} style={S.resetBtn}>Reset {profile.name}'s progress</button>
+      </div>
+    </div>
+  );
+}
+
+/* ============================ BOTTOM NAV ============================ */
+function BottomNav({ view, setView }) {
+  const items = [
+    { id: "home",       icon: <HomeIcon size={20} />,  label: "Home" },
+    { id: "results",    icon: <BarChart3 size={20} />, label: "Results" },
+    { id: "collection", icon: <Trophy size={20} />,    label: "Collection" },
+    { id: "settings",   icon: <Cog size={20} />,       label: "Settings" },
+  ];
+  return (
+    <div style={S.bottomNav}>
+      {items.map(it => (
+        <button key={it.id} onClick={() => setView(it.id)}
+          style={{ ...S.navBtn, color: view === it.id ? "#143232" : "#8a9389" }}>
+          {it.icon}
+          <div style={{ fontSize: 11, marginTop: 3 }}>{it.label}</div>
+        </button>
+      ))}
+    </div>
+  );
+}
+
+/* ============================ STYLES ============================ */
+const cssReset = `
+  *, *::before, *::after { box-sizing: border-box; }
+  body, html, #root { margin: 0; padding: 0; }
+  button { cursor: pointer; border: none; font-family: inherit; }
+  button:disabled { cursor: default; }
+  input { font-family: inherit; }
+`;
+
+const FONT = '"Quicksand", "Nunito", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
+
+const S = {
+  shell: { minHeight: "100vh", background: "#F5EFE6", fontFamily: FONT, color: "#143232", paddingBottom: 70 },
+  header: {
+    display: "flex", alignItems: "center", justifyContent: "space-between",
+    padding: "14px 16px", background: "#143232", color: "#FAFAFA",
+    position: "sticky", top: 0, zIndex: 10,
+  },
+  headerBtn: {
+    background: "rgba(255,255,255,0.1)", color: "#FAFAFA", padding: "6px 10px",
+    borderRadius: 8, display: "flex", alignItems: "center", fontSize: 12, fontWeight: 600,
+  },
+  headerTitle: { fontWeight: 700, fontSize: 15, display: "flex", alignItems: "center", gap: 8 },
+  headerStats: { display: "flex", alignItems: "center", fontSize: 13, fontWeight: 700, background: "rgba(255,255,255,0.08)", padding: "6px 10px", borderRadius: 8 },
+
+  /* Body */
+  body: { padding: "16px 18px 24px", maxWidth: 480, margin: "0 auto" },
+  dateRow: { textAlign: "center", color: "#5a6b5f", fontSize: 13, marginBottom: 10 },
+  pageTitle: { fontSize: 26, fontWeight: 800, marginBottom: 12, letterSpacing: "-0.3px" },
+  subTitle: { fontSize: 13, color: "#5a6b5f", marginBottom: 12 },
+  sectionTitle: { fontSize: 13, fontWeight: 700, textTransform: "uppercase", letterSpacing: "1px", color: "#5a6b5f", marginTop: 22, marginBottom: 10 },
+  backBtn: { background: "transparent", color: "#143232", padding: "6px 0", display: "flex", alignItems: "center", fontWeight: 600, fontSize: 14, marginBottom: 6 },
+
+  /* Picker */
+  pickerWrap: { minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", padding: 20, background: "#F5EFE6" },
+  pickerInner: { width: "100%", maxWidth: 420 },
+  pickerTitle: { fontSize: 32, fontWeight: 800, textAlign: "center", color: "#143232", marginBottom: 4, letterSpacing: "-0.5px" },
+  pickerSub: { textAlign: "center", color: "#5a6b5f", marginBottom: 26, fontSize: 15 },
+  pickerGrid: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 },
+  pickerCard: {
+    background: "#FAFAFA", padding: "22px 16px", borderRadius: 18,
+    boxShadow: "0 2px 0 #DCD7C8", border: "1px solid #E5DDC9",
+    display: "flex", flexDirection: "column", alignItems: "center",
+  },
+  pickerName: { fontWeight: 700, fontSize: 20, marginBottom: 2 },
+  pickerYear: { fontSize: 12, color: "#5a6b5f", marginBottom: 8 },
+  pickerPoints: { display: "flex", alignItems: "center", fontSize: 12, color: "#5a6b5f", fontWeight: 600 },
+
+  /* Home */
+  heroCard: { background: "#FAFAFA", borderRadius: 20, padding: 24, textAlign: "center", marginBottom: 14, border: "1px solid #E5DDC9", boxShadow: "0 2px 0 #DCD7C8" },
+  heroName: { fontWeight: 800, fontSize: 22, marginTop: 6 },
+  heroTag: { fontSize: 12, color: "#5a6b5f", textTransform: "uppercase", letterSpacing: "1px", marginTop: 4 },
+  termBadge: { display: "inline-flex", alignItems: "center", padding: "5px 10px", background: "#143232", color: "#FAFAFA", borderRadius: 12, fontSize: 12, fontWeight: 600, marginBottom: 16 },
+  doneCard: { background: "#E8F4ED", borderRadius: 16, padding: 18, textAlign: "center", marginBottom: 14 },
+  bigBtn: {
+    width: "100%", background: "#D4823F", color: "#FAFAFA",
+    padding: "16px 18px", borderRadius: 14, fontSize: 18, fontWeight: 700,
+    display: "flex", alignItems: "center", justifyContent: "center",
+    boxShadow: "0 2px 0 #a3622a",
+  },
+  quickRow: { display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10, marginTop: 16 },
+  quickBtn: { background: "#FAFAFA", padding: "14px 8px", borderRadius: 12, display: "flex", flexDirection: "column", alignItems: "center", border: "1px solid #E5DDC9" },
+  quickLabel: { fontSize: 12, marginTop: 6, fontWeight: 600 },
+
+  /* Practice */
+  practiceTop: { marginBottom: 14 },
+  progressBar: { width: "100%", height: 8, background: "#E5DDC9", borderRadius: 4, overflow: "hidden" },
+  progressFill: { height: "100%", background: "#3DAA7C", transition: "width 200ms" },
+  progressLabel: { fontSize: 12, color: "#5a6b5f", marginTop: 6, textAlign: "center" },
+  challengerBadge: { display: "inline-flex", alignItems: "center", background: "#FFF3D9", color: "#8c6612", padding: "4px 10px", borderRadius: 10, fontSize: 12, fontWeight: 700, marginBottom: 6 },
+  subjectChip: { display: "inline-flex", alignItems: "center", padding: "4px 10px", background: "#FAFAFA", border: "1px solid #E5DDC9", borderRadius: 10, fontSize: 12, fontWeight: 600, marginBottom: 10 },
+  subjectDot: { width: 8, height: 8, borderRadius: 4, marginRight: 6 },
+  qCard: { background: "#FAFAFA", borderRadius: 18, padding: 18, border: "1px solid #E5DDC9", boxShadow: "0 2px 0 #DCD7C8" },
+  qPrompt: { fontSize: 17, fontWeight: 700, marginBottom: 12, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 },
+  speakBtn: { background: "#143232", color: "#FAFAFA", padding: 8, borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 },
+  bigChar: { textAlign: "center", fontSize: 96, fontWeight: 800, padding: "12px 0", color: "#143232" },
+  wordBox: { textAlign: "center", fontSize: 36, fontWeight: 800, padding: "16px 8px", color: "#143232", background: "#F5EFE6", borderRadius: 12, marginBottom: 6 },
+  sentenceBox: { fontSize: 18, fontStyle: "italic", padding: "12px 8px", color: "#143232", background: "#F5EFE6", borderRadius: 12, marginBottom: 6, textAlign: "center" },
+  hearBtn: { display: "flex", alignItems: "center", justifyContent: "center", width: "100%", padding: "10px 14px", background: "#F5EFE6", border: "1px solid #E5DDC9", borderRadius: 12, fontWeight: 600, marginBottom: 6 },
+  choicesGrid: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginTop: 12 },
+  choiceBtn: {
+    background: "#FAFAFA", border: "2px solid #E5DDC9", padding: "14px 8px",
+    borderRadius: 12, fontSize: 18, fontWeight: 700, color: "#143232",
+    minHeight: 56,
+  },
+  choiceCorrect: { background: "#D4F0E0", borderColor: "#3DAA7C", color: "#1a6d4a" },
+  choiceWrong: { background: "#F8DDDD", borderColor: "#c44a4a", color: "#a23030" },
+  typeInput: {
+    width: "100%", padding: "14px 16px", fontSize: 22, fontWeight: 700,
+    border: "2px solid #E5DDC9", borderRadius: 12, background: "#FAFAFA",
+    textAlign: "center", color: "#143232", outline: "none",
+  },
+  submitBtn: { width: "100%", background: "#143232", color: "#FAFAFA", padding: "14px 18px", borderRadius: 12, fontWeight: 700, fontSize: 15, marginTop: 10 },
+  feedback: { display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700 },
+  scorePill: { display: "inline-flex", alignItems: "center", background: "#FAFAFA", border: "1px solid #E5DDC9", padding: "6px 12px", borderRadius: 12, fontSize: 13, fontWeight: 600, marginTop: 14 },
+
+  /* Done */
+  doneTitle: { fontSize: 26, fontWeight: 800, textAlign: "center", marginTop: 16 },
+  doneBig: { fontSize: 72, fontWeight: 900, textAlign: "center", color: "#D4823F", marginTop: 6, lineHeight: 1 },
+  doneSub: { textAlign: "center", color: "#5a6b5f", fontSize: 14 },
+  doneEmoji: { fontSize: 80, textAlign: "center", margin: "16px 0" },
+  doneCard2: { background: "#FAFAFA", padding: 16, borderRadius: 14, textAlign: "center", border: "1px solid #E5DDC9", marginBottom: 16 },
+
+  /* Results */
+  statsRow: { display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10, marginBottom: 16 },
+  statBox: { background: "#FAFAFA", padding: 14, borderRadius: 14, textAlign: "center", border: "1px solid #E5DDC9" },
+  statNum: { fontSize: 24, fontWeight: 800, color: "#143232" },
+  statLabel: { fontSize: 12, color: "#5a6b5f", marginTop: 2 },
+  insightCard: { background: "#FAFAFA", padding: 14, borderRadius: 14, border: "1px solid #E5DDC9", marginBottom: 6 },
+  insightLabel: { fontSize: 11, color: "#5a6b5f", textTransform: "uppercase", letterSpacing: "1px", fontWeight: 700, marginBottom: 4 },
+  insightValue: { fontSize: 16, fontWeight: 700, display: "flex", alignItems: "center" },
+  subjectRow: { background: "#FAFAFA", padding: 12, borderRadius: 12, marginBottom: 8, border: "1px solid #E5DDC9" },
+  barTrack: { width: "100%", height: 8, background: "#E5DDC9", borderRadius: 4, overflow: "hidden" },
+  barFill: { height: "100%", borderRadius: 4, transition: "width 300ms" },
+  calRow: { display: "grid", gridTemplateColumns: "repeat(14, 1fr)", gap: 4, marginTop: 6 },
+  calDay: { display: "flex", flexDirection: "column", alignItems: "center" },
+  calDot: { width: "100%", aspectRatio: "1", borderRadius: 6, display: "flex", alignItems: "center", justifyContent: "center", color: "#FAFAFA", fontWeight: 700, fontSize: 11 },
+  calLabel: { fontSize: 9, color: "#5a6b5f", marginTop: 2 },
+
+  /* Collection */
+  collGrid: { display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 },
+  collCard: { background: "#FAFAFA", padding: 12, borderRadius: 14, textAlign: "center", border: "1px solid #E5DDC9" },
+  collFav: { borderColor: "#D4A04A", boxShadow: "0 0 0 2px #FFF3D9" },
+  collName: { fontWeight: 700, fontSize: 13, marginTop: 4, marginBottom: 6 },
+  collBtn: { width: "100%", padding: "6px 8px", borderRadius: 8, fontSize: 12, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center" },
+
+  /* Settings */
+  themeRow: { display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10, marginBottom: 10 },
+  themeBtn: { background: "#FAFAFA", border: "2px solid #E5DDC9", borderRadius: 12, padding: 12, textAlign: "center" },
+  themeBtnOn: { borderColor: "#143232", background: "#E8EEEC" },
+  select: { width: "100%", padding: "10px 12px", border: "1px solid #E5DDC9", borderRadius: 10, background: "#FAFAFA", fontSize: 14, color: "#143232", fontFamily: "inherit" },
+  testVoiceBtn: { background: "#143232", color: "#FAFAFA", padding: "8px 14px", borderRadius: 10, border: "none", fontWeight: 600, fontSize: 13, display: "inline-flex", alignItems: "center" },
+  resetBtn: { background: "transparent", color: "#a23030", padding: "10px 12px", border: "1px solid #E0BFBF", borderRadius: 10, fontWeight: 600, fontSize: 14 },
+
+  /* Bottom nav */
+  bottomNav: {
+    position: "fixed", bottom: 0, left: 0, right: 0, background: "#FAFAFA",
+    borderTop: "1px solid #E5DDC9", display: "flex", justifyContent: "space-around",
+    padding: "8px 0", zIndex: 20,
+  },
+  navBtn: { background: "transparent", padding: "4px 12px", display: "flex", flexDirection: "column", alignItems: "center", fontWeight: 600 },
+};
+
+
+/* ============================ RENDER ============================ */
+const _root = ReactDOM.createRoot(document.getElementById("root"));
+_root.render(<App />);
+
+  </script>
+</body>
+</html>
