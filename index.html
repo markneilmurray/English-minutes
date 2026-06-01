@@ -175,6 +175,25 @@ const mergeWithDefault = (parsed) => {
 
 const hasFirebase = () => typeof firebase !== "undefined" && firebase.database;
 
+// Returns a "value score" for a data object - sum of points + days completed across profiles.
+// Used as a guard so we never overwrite a high-value Firebase state with a low-value local state.
+function dataValueScore(d) {
+  if (!d || !d.profiles) return 0;
+  let score = 0;
+  for (const p of Object.values(d.profiles)) {
+    score += (p.points || 0);
+    score += Object.keys(p.days || {}).length * 100;
+    score += Object.keys(p.subjects || {}).length;
+    score += (p.unlocked || []).length;
+  }
+  return score;
+}
+
+// Tracks the highest-value data we've ever seen so we can refuse to save a reset on top of it
+let _lastKnownGoodScore = 0;
+// Tracks whether the initial load from Firebase has completed - we BLOCK saves until it does
+let _firebaseLoadComplete = false;
+
 async function loadData() {
   // Optimistic: read local first for instant UI
   let local = null;
@@ -182,23 +201,43 @@ async function loadData() {
     const raw = typeof localStorage !== "undefined" ? localStorage.getItem(KEY) : null;
     if (raw) local = mergeWithDefault(JSON.parse(raw));
   } catch {}
+  if (local) _lastKnownGoodScore = Math.max(_lastKnownGoodScore, dataValueScore(local));
 
   // Then try Firebase; prefer remote if present
   try {
     if (hasFirebase()) {
       const snap = await firebase.database().ref(FB_PATH).once("value");
       const v = snap.val();
+      _firebaseLoadComplete = true;
       if (v) {
+        const merged = mergeWithDefault(v);
+        _lastKnownGoodScore = Math.max(_lastKnownGoodScore, dataValueScore(merged));
         try { localStorage.setItem(KEY, JSON.stringify(v)); } catch {}
-        return mergeWithDefault(v);
+        return merged;
       }
     }
-  } catch (e) { console.warn("Firebase load failed:", e); }
+  } catch (e) { console.warn("Firebase load failed:", e); _firebaseLoadComplete = true; }
 
   return local || DEFAULT_DATA();
 }
 
 async function saveData(d) {
+  // CRITICAL GUARD: never overwrite known-good data with a reset.
+  // This catches the race where the app boots, Firebase hasn't responded yet, the user
+  // taps something which triggers a save of default/zero data, and that empty save
+  // would wipe the real data on Firebase.
+  if (!_firebaseLoadComplete) {
+    console.warn("saveData blocked - Firebase load not complete yet");
+    return;
+  }
+  const incomingScore = dataValueScore(d);
+  if (incomingScore < _lastKnownGoodScore - 50) {
+    // Allow a small drop (e.g. spending points on a part) but block a wholesale wipe
+    console.warn(`saveData blocked - would wipe data (incoming score ${incomingScore} vs known good ${_lastKnownGoodScore})`);
+    return;
+  }
+  _lastKnownGoodScore = Math.max(_lastKnownGoodScore, incomingScore);
+
   // Always save locally for instant access
   try {
     if (typeof localStorage !== "undefined") {
@@ -219,8 +258,10 @@ function subscribeData(callback) {
   const handler = (snap) => {
     const v = snap.val();
     if (v) {
+      const merged = mergeWithDefault(v);
+      _lastKnownGoodScore = Math.max(_lastKnownGoodScore, dataValueScore(merged));
       try { localStorage.setItem(KEY, JSON.stringify(v)); } catch {}
-      callback(mergeWithDefault(v));
+      callback(merged);
     }
   };
   ref.on("value", handler);
@@ -1979,6 +2020,57 @@ function SettingsView({ profile, data, setData, onBack }) {
         )}
       </div>
 
+      <div style={S.sectionTitle}>Backup & sync</div>
+      <div style={{ ...S.insightCard, marginTop: 8 }}>
+        <div style={{ fontSize: 13, color: "#5a6b5f", marginBottom: 8 }}>
+          <strong>Firebase sync:</strong> {typeof firebase !== "undefined" && firebase.database ? "✅ Connected" : "❌ Not connected (local only)"}
+        </div>
+        <div style={{ fontSize: 12, color: "#7a8b80", marginBottom: 12, lineHeight: 1.4 }}>
+          Your progress saves automatically. You can also export a backup file anytime as a safety net.
+        </div>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          <button onClick={() => {
+            const json = JSON.stringify(data, null, 2);
+            const blob = new Blob([json], { type: "application/json" });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = `english-minutes-backup-${new Date().toISOString().slice(0,10)}.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+          }} style={S.backupBtn}>📥 Download backup</button>
+
+          <label style={{ ...S.backupBtn, cursor: "pointer" }}>
+            📤 Restore from backup
+            <input type="file" accept="application/json,.json" style={{ display: "none" }} onChange={(e) => {
+              const file = e.target.files && e.target.files[0];
+              if (!file) return;
+              const reader = new FileReader();
+              reader.onload = (ev) => {
+                try {
+                  const parsed = JSON.parse(ev.target.result);
+                  if (!parsed.profiles) {
+                    alert("That doesn't look like a valid backup file.");
+                    return;
+                  }
+                  const confirmed = confirm("This will replace all current progress with the backup. Continue?");
+                  if (!confirmed) return;
+                  setData(mergeWithDefault(parsed));
+                  alert("Backup restored!");
+                } catch (err) {
+                  alert("Could not read that file: " + err.message);
+                }
+              };
+              reader.readAsText(file);
+              // reset the input so the same file can be picked again
+              e.target.value = "";
+            }} />
+          </label>
+        </div>
+      </div>
+
       <div style={S.sectionTitle}>Term</div>
       <div style={{ ...S.insightCard, marginTop: 8 }}>
         <div style={{ fontSize: 14, color: "#5a6b5f" }}>The questions get harder through the year:</div>
@@ -2210,6 +2302,12 @@ const S = {
   select: { width: "100%", padding: "10px 12px", border: "1px solid #E5DDC9", borderRadius: 10, background: "#FAFAFA", fontSize: 14, color: "#143232", fontFamily: "inherit" },
   testVoiceBtn: { background: "#143232", color: "#FAFAFA", padding: "8px 14px", borderRadius: 10, border: "none", fontWeight: 600, fontSize: 13, display: "inline-flex", alignItems: "center" },
   resetBtn: { background: "transparent", color: "#a23030", padding: "10px 12px", border: "1px solid #E0BFBF", borderRadius: 10, fontWeight: 600, fontSize: 14 },
+  backupBtn: {
+    background: "#143232", color: "#FAFAFA",
+    padding: "10px 14px", borderRadius: 10,
+    border: "none", fontSize: 13, fontWeight: 600,
+    display: "inline-flex", alignItems: "center", gap: 4,
+  },
 
   /* Bottom nav */
   bottomNav: {
