@@ -142,10 +142,26 @@ const DEFAULT_DATA = () => ({
 
 const mergeWithDefault = (parsed) => {
   const def = DEFAULT_DATA();
+  const mergedProfiles = {};
+  // Deep-merge each profile so any missing fields (e.g. collection on an old save) get defaults
+  for (const id of Object.keys(def.profiles)) {
+    const defProfile = def.profiles[id];
+    const parsedProfile = (parsed.profiles || {})[id] || {};
+    mergedProfiles[id] = {
+      ...defProfile,
+      ...parsedProfile,
+      // Guarantee these fields exist as the right type even if old data set them to null/undefined
+      collection: Array.isArray(parsedProfile.collection) ? parsedProfile.collection : [],
+      subjects: (parsedProfile.subjects && typeof parsedProfile.subjects === "object") ? parsedProfile.subjects : {},
+      days: (parsedProfile.days && typeof parsedProfile.days === "object") ? parsedProfile.days : {},
+      points: typeof parsedProfile.points === "number" ? parsedProfile.points : 0,
+      streak: typeof parsedProfile.streak === "number" ? parsedProfile.streak : 0,
+    };
+  }
   return {
     ...def,
     ...parsed,
-    profiles: { ...def.profiles, ...(parsed.profiles || {}) },
+    profiles: mergedProfiles,
   };
 };
 
@@ -1280,6 +1296,7 @@ function PracticeView({ profile, data, setData, onDone }) {
 
 /* ============================ DONE SCREEN ============================ */
 function DoneScreen({ profile, data, setData, answers, questions, onDone, onExtra, isExtra }) {
+  const [showReview, setShowReview] = useState(false);
   const total = questions.length;
   const score = Object.values(answers).filter(a => a.correct).length;
   const pct = Math.round((score / total) * 100);
@@ -1348,6 +1365,10 @@ function DoneScreen({ profile, data, setData, answers, questions, onDone, onExtr
 
   const earnedPoints = isExtra ? score * 2 : score * 5 + 10;
 
+  if (showReview) {
+    return <ReviewScreen questions={questions} answers={answers} onBack={() => setShowReview(false)} />;
+  }
+
   return (
     <div style={S.body}>
       <div style={S.doneTitle}>{pct >= 80 ? "Amazing work!" : pct >= 50 ? "Good job!" : "Keep going!"}</div>
@@ -1363,11 +1384,81 @@ function DoneScreen({ profile, data, setData, answers, questions, onDone, onExtr
         </div>
       </div>
 
-      <button onClick={onExtra} style={S.bigBtn}>
+      <button onClick={() => setShowReview(true)} style={{ ...S.bigBtn, background: "#FAFAFA", color: "#143232", border: "2px solid #E5DDC9" }}>
+        <BookOpen size={18} /> <span style={{ marginLeft: 8 }}>Review answers</span>
+      </button>
+      <button onClick={onExtra} style={{ ...S.bigBtn, marginTop: 12 }}>
         <Pencil size={18} /> <span style={{ marginLeft: 8 }}>More practice</span>
       </button>
       <button onClick={onDone} style={{ ...S.bigBtn, background: "#143232", marginTop: 12 }}>
         <HomeIcon size={18} /> <span style={{ marginLeft: 8 }}>Back home</span>
+      </button>
+    </div>
+  );
+}
+
+/* ============================ REVIEW ============================ */
+function ReviewScreen({ questions, answers, onBack }) {
+  const formatPromptText = (q) => {
+    // Build a readable prompt that includes any embedded word
+    if (q.word) return `${q.prompt} (${q.word})`;
+    if (q.spoken) return `${q.prompt} (${q.spoken})`;
+    return q.prompt;
+  };
+
+  const formatAnswerValue = (q, val) => {
+    if (val === undefined || val === null) return "(no answer)";
+    return String(val);
+  };
+
+  return (
+    <div style={S.body}>
+      <button onClick={onBack} style={S.backBtn}><ArrowLeft size={16} /> <span style={{ marginLeft: 6 }}>Done</span></button>
+      <div style={S.pageTitle}>Review</div>
+      <div style={S.subTitle}>See what you got right and how to improve.</div>
+
+      {questions.map((q, i) => {
+        const ans = answers[i];
+        const correct = ans && ans.correct;
+        return (
+          <div key={i} style={{
+            ...S.reviewCard,
+            borderColor: correct ? "#7AA095" : "#E07A5F",
+          }}>
+            <div style={S.reviewHeader}>
+              <div style={S.reviewQNum}>Q{i + 1}{q.challenger ? " · challenger" : ""}</div>
+              <div style={{
+                ...S.reviewBadge,
+                background: correct ? "#E1ECE6" : "#FCE6DD",
+                color: correct ? "#2E5A4A" : "#9A3F25",
+              }}>
+                {correct ? <><Check size={12} /> <span style={{ marginLeft: 4 }}>Correct</span></> : <><X size={12} /> <span style={{ marginLeft: 4 }}>Try again</span></>}
+              </div>
+            </div>
+
+            <div style={S.reviewPrompt}>{formatPromptText(q)}</div>
+
+            <div style={S.reviewRow}>
+              <div style={S.reviewLabel}>Your answer</div>
+              <div style={{
+                ...S.reviewValue,
+                color: correct ? "#2E5A4A" : "#9A3F25",
+                fontWeight: 700,
+              }}>{formatAnswerValue(q, ans ? ans.value : null)}</div>
+            </div>
+
+            {!correct && (
+              <div style={S.reviewRow}>
+                <div style={S.reviewLabel}>Correct answer</div>
+                <div style={{ ...S.reviewValue, color: "#2E5A4A", fontWeight: 700 }}>{String(q.answer)}</div>
+              </div>
+            )}
+          </div>
+        );
+      })}
+
+      <button onClick={onBack} style={{ ...S.bigBtn, marginTop: 8 }}>
+        <ArrowLeft size={18} /> <span style={{ marginLeft: 8 }}>Back to summary</span>
       </button>
     </div>
   );
@@ -1481,19 +1572,21 @@ function ResultsView({ profile, onBack }) {
 
 /* ============================ COLLECTION ============================ */
 function CollectionView({ profile, data, setData, onBack }) {
-  const theme = THEMES[profile.theme];
+  const theme = THEMES[profile.theme] || THEMES.monsters;
+  const collection = profile.collection || [];
+  const points = profile.points || 0;
 
   const buy = (item) => {
-    if (profile.collection.includes(item.id)) return;
-    if ((profile.points || 0) < item.price) return;
+    if (collection.includes(item.id)) return;
+    if (points < item.price) return;
     const next = {
       ...data,
       profiles: {
         ...data.profiles,
         [profile.id]: {
           ...profile,
-          points: (profile.points || 0) - item.price,
-          collection: [...profile.collection, item.id],
+          points: points - item.price,
+          collection: [...collection, item.id],
           favourite: profile.favourite || item.id,
         },
       },
@@ -1502,7 +1595,7 @@ function CollectionView({ profile, data, setData, onBack }) {
   };
 
   const setFavourite = (id) => {
-    if (!profile.collection.includes(id)) return;
+    if (!collection.includes(id)) return;
     const next = {
       ...data,
       profiles: {
@@ -1517,14 +1610,24 @@ function CollectionView({ profile, data, setData, onBack }) {
     <div style={S.body}>
       <button onClick={onBack} style={S.backBtn}><ArrowLeft size={16} /> <span style={{ marginLeft: 6 }}>Home</span></button>
       <div style={S.pageTitle}>{theme.label} Collection</div>
-      <div style={S.subTitle}>
-        Earn <Star size={14} color="#D4A04A" style={{ display: "inline", verticalAlign: "middle" }} /> points by practising. Tap to unlock or set as favourite.
+
+      <div style={S.collHeader}>
+        <div style={S.collPointsBox}>
+          <Star size={16} color="#D4A04A" />
+          <span style={{ marginLeft: 6, fontWeight: 700, fontSize: 16 }}>{points} points</span>
+        </div>
+        <div style={S.collStats}>{collection.length} of {theme.items.length} unlocked</div>
       </div>
+
+      <div style={S.subTitle}>
+        Earn points by practising. Tap to unlock new characters or pick your favourite.
+      </div>
+
       <div style={S.collGrid}>
         {theme.items.map(item => {
-          const owned = profile.collection.includes(item.id);
+          const owned = collection.includes(item.id);
           const isFav = profile.favourite === item.id;
-          const canAfford = (profile.points || 0) >= item.price;
+          const canAfford = points >= item.price;
           return (
             <div key={item.id} style={{
               ...S.collCard,
@@ -1544,7 +1647,7 @@ function CollectionView({ profile, data, setData, onBack }) {
                 <button
                   onClick={() => buy(item)}
                   disabled={!canAfford}
-                  style={{ ...S.collBtn, background: canAfford ? "#D4A04A" : "#E5DDC9", color: "#143232" }}
+                  style={{ ...S.collBtn, background: canAfford ? "#D4A04A" : "#E5DDC9", color: "#143232", cursor: canAfford ? "pointer" : "default" }}
                 >
                   {canAfford ? <><Star size={11} color="#143232" /> <span style={{ marginLeft: 4 }}>{item.price}</span></> : <><Lock size={11} /> <span style={{ marginLeft: 4 }}>{item.price}</span></>}
                 </button>
@@ -1819,6 +1922,19 @@ const S = {
   collFav: { borderColor: "#D4A04A", boxShadow: "0 0 0 2px #FFF3D9" },
   collName: { fontWeight: 700, fontSize: 13, marginTop: 4, marginBottom: 6 },
   collBtn: { width: "100%", padding: "6px 8px", borderRadius: 8, fontSize: 12, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center" },
+  collHeader: { display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 4, marginBottom: 10 },
+  collPointsBox: { display: "inline-flex", alignItems: "center", background: "#FFF3D9", padding: "8px 14px", borderRadius: 999, border: "1px solid #F0D788" },
+  collStats: { fontSize: 13, fontWeight: 600, color: "#5C6F66" },
+
+  /* Review */
+  reviewCard: { background: "#FAFAFA", border: "2px solid #E5DDC9", borderRadius: 14, padding: 14, marginBottom: 10 },
+  reviewHeader: { display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 },
+  reviewQNum: { fontSize: 12, fontWeight: 700, color: "#7a8b80", textTransform: "uppercase", letterSpacing: "0.04em" },
+  reviewBadge: { display: "inline-flex", alignItems: "center", padding: "3px 8px", borderRadius: 999, fontSize: 11, fontWeight: 700 },
+  reviewPrompt: { fontSize: 15, fontWeight: 600, color: "#143232", marginBottom: 10, lineHeight: 1.35 },
+  reviewRow: { display: "flex", alignItems: "center", justifyContent: "space-between", padding: "6px 0", borderTop: "1px solid #F0EAD8" },
+  reviewLabel: { fontSize: 12, color: "#7a8b80", fontWeight: 600 },
+  reviewValue: { fontSize: 15 },
 
   /* Settings */
   themeRow: { display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10, marginBottom: 10 },
@@ -2038,6 +2154,2187 @@ const BANDS = {
   ort9:       { name: "ORT Level 9", colour: "#E63946", label: "Gold Band · Year 3" },
 };
 
+
+/* ============================ STORY LIBRARY ============================ */
+// Pre-written stories for the next ~2 months per child.
+// Updated periodically. Picked deterministically by ISO week so each week is consistent
+// across devices, but a new week pulls the next story in the cycle.
+const STORY_LIBRARY = {
+  "charlie": [
+    {
+      "title": "The Lost Kitten",
+      "subtitle": "Tom and Mia help a tiny stray find its way home.",
+      "palette": [
+        "#2A9D8F",
+        "#E9C46A",
+        "#F4A261"
+      ],
+      "pages": [
+        {
+          "text": "Tom and Mia found something small in the garden.",
+          "emojis": "🐱,🌳,🏠,🌷"
+        },
+        {
+          "text": "It was a tiny white kitten with bright blue eyes.",
+          "emojis": "🐱,👀,🍃,💙"
+        },
+        {
+          "text": "The kitten was crying. It looked so sad.",
+          "emojis": "🐱,😢,💧,🍂"
+        },
+        {
+          "text": "Mia picked it up gently. \"Let's help you,\" she said.",
+          "emojis": "👧,🐱,🤗,💚",
+          "question": {
+            "type": "prediction",
+            "prompt": "What might Tom and Mia do next?",
+            "options": [
+              "Take the kitten home",
+              "Leave it outside",
+              "Go and play"
+            ],
+            "answer": "Take the kitten home",
+            "hint": "Think about what kind people do for lost animals."
+          }
+        },
+        {
+          "text": "They walked back to their house. The kitten was warm in her arms.",
+          "emojis": "👦,👧,🐱,🏡"
+        },
+        {
+          "text": "At home, they gave the kitten a saucer of milk.",
+          "emojis": "🥛,🐱,🍽️,😋"
+        },
+        {
+          "text": "Mum looked at the kitten. \"We must find its owner,\" she said.",
+          "emojis": "👩,🐱,🤔,🔍",
+          "question": {
+            "type": "skimscan",
+            "prompt": "Find the drink word on this page.",
+            "options": [
+              "milk",
+              "tea",
+              "juice"
+            ],
+            "answer": "milk",
+            "hint": "Look back at page 6."
+          }
+        },
+        {
+          "text": "Tom made a poster. He drew the kitten and wrote \"Lost?\"",
+          "emojis": "👦,✏️,📝,🐱"
+        },
+        {
+          "text": "They stuck the poster on the lamp post outside.",
+          "emojis": "📝,🪵,👀,🍃"
+        },
+        {
+          "text": "A girl with red hair stopped to look. \"That's my kitten!\"",
+          "emojis": "👧,🐱,😊,❤️",
+          "question": {
+            "type": "retrieval",
+            "prompt": "Who put the poster up?",
+            "options": [
+              "Mum",
+              "Tom and Mia",
+              "The girl"
+            ],
+            "answer": "Tom and Mia",
+            "hint": "Look back at pages 8 and 9."
+          }
+        },
+        {
+          "text": "Her name was Lily. She had been looking all morning.",
+          "emojis": "👧,⏰,🔍,💔"
+        },
+        {
+          "text": "\"I call him Snowy,\" Lily said. Snowy ran to her.",
+          "emojis": "🐱,🤗,👧,❄️"
+        },
+        {
+          "text": "Snowy purred and rubbed against Lily's legs.",
+          "emojis": "🐱,💕,👧,😺",
+          "question": {
+            "type": "inference",
+            "prompt": "Why was Snowy so happy to see Lily?",
+            "options": [
+              "She had food",
+              "She was his owner",
+              "She had toys"
+            ],
+            "answer": "She was his owner",
+            "hint": "Think about who Snowy belongs to."
+          }
+        },
+        {
+          "text": "\"Thank you both,\" said Lily. \"I was so worried!\"",
+          "emojis": "👧,🙏,😊,💚"
+        },
+        {
+          "text": "Tom and Mia waved as Lily walked home with Snowy.",
+          "emojis": "👦,👧,👋,🐱"
+        },
+        {
+          "text": "That evening, there was a knock at the door.",
+          "emojis": "🚪,🔔,👦,❓",
+          "question": {
+            "type": "prediction",
+            "prompt": "Who might be at the door?",
+            "options": [
+              "A stranger",
+              "Lily with a thank you",
+              "Nobody"
+            ],
+            "answer": "Lily with a thank you",
+            "hint": "Think about who they helped today."
+          }
+        },
+        {
+          "text": "Lily stood there with a big box in her hands.",
+          "emojis": "👧,📦,🎁,😊"
+        },
+        {
+          "text": "Inside was a chocolate cake with \"Thank you!\" on top.",
+          "emojis": "🎂,🍫,📝,😋"
+        },
+        {
+          "text": "They sat together and shared the cake. Best day ever!",
+          "emojis": "🎂,👨‍👩‍👧‍👦,🍴,🎉",
+          "question": {
+            "type": "retrieval",
+            "prompt": "What was inside the box?",
+            "options": [
+              "A kitten",
+              "A chocolate cake",
+              "Some toys"
+            ],
+            "answer": "A chocolate cake",
+            "hint": "Look back at page 18."
+          }
+        },
+        {
+          "text": "Tom and Mia fell asleep smiling, thinking about Snowy.",
+          "emojis": "👦,👧,😴,⭐"
+        }
+      ]
+    },
+    {
+      "title": "Treasure in the Sand",
+      "subtitle": "A trip to the beach uncovers a real surprise.",
+      "palette": [
+        "#F4A261",
+        "#264653",
+        "#E9C46A"
+      ],
+      "pages": [
+        {
+          "text": "Ben and Sam went to the beach with their dad.",
+          "emojis": "👦,👨,🏖️,🌊"
+        },
+        {
+          "text": "The sand was soft and warm under their feet.",
+          "emojis": "🦶,🏖️,☀️,😊"
+        },
+        {
+          "text": "Dad gave each boy a spade and a bucket.",
+          "emojis": "👨,🪣,⚒️,😀"
+        },
+        {
+          "text": "\"Let's dig a really deep hole,\" said Ben.",
+          "emojis": "👦,🪣,🤔,💪",
+          "question": {
+            "type": "prediction",
+            "prompt": "What do you think they will find?",
+            "options": [
+              "A football",
+              "Something hidden",
+              "Just sand"
+            ],
+            "answer": "Something hidden",
+            "hint": "The story is called Treasure in the Sand."
+          }
+        },
+        {
+          "text": "They dug and dug. Sand flew up into the air.",
+          "emojis": "⚒️,🏖️,💨,😄"
+        },
+        {
+          "text": "Sam's spade hit something hard with a CLUNK!",
+          "emojis": "⚒️,💥,👦,❓"
+        },
+        {
+          "text": "It was an old box, made of dark wood.",
+          "emojis": "📦,🪵,🏖️,🔍",
+          "question": {
+            "type": "skimscan",
+            "prompt": "What word tells you the box was old?",
+            "options": [
+              "dark",
+              "old",
+              "wooden"
+            ],
+            "answer": "old",
+            "hint": "Read page 7 again carefully."
+          }
+        },
+        {
+          "text": "The box had a small rusty lock on the front.",
+          "emojis": "📦,🔒,⚙️,🤨"
+        },
+        {
+          "text": "Dad helped them open it. Inside were shiny coins!",
+          "emojis": "📦,✨,🪙,😮"
+        },
+        {
+          "text": "There were ten gold coins from a long time ago.",
+          "emojis": "🪙,🪙,🪙,🔟",
+          "question": {
+            "type": "retrieval",
+            "prompt": "How many gold coins were in the box?",
+            "options": [
+              "Five",
+              "Ten",
+              "Twenty"
+            ],
+            "answer": "Ten",
+            "hint": "Look back at page 10."
+          }
+        },
+        {
+          "text": "\"This must be from a pirate ship,\" Ben said excitedly.",
+          "emojis": "🏴‍☠️,🚢,👦,⚔️"
+        },
+        {
+          "text": "A man with a metal detector walked over to them.",
+          "emojis": "👨,🔧,👀,🏖️"
+        },
+        {
+          "text": "He looked sad. \"I have been searching for those for years.\"",
+          "emojis": "👨,😢,🔍,⏳",
+          "question": {
+            "type": "inference",
+            "prompt": "Why was the man sad?",
+            "options": [
+              "He was tired",
+              "The boys found his treasure first",
+              "He lost his dog"
+            ],
+            "answer": "The boys found his treasure first",
+            "hint": "Think about what he said."
+          }
+        },
+        {
+          "text": "Ben and Sam looked at each other. They knew what to do.",
+          "emojis": "👦,👦,👀,🤝"
+        },
+        {
+          "text": "\"You can have the coins,\" Sam said kindly.",
+          "emojis": "👦,🎁,🪙,💚"
+        },
+        {
+          "text": "The man smiled wide. He pulled out a little bag.",
+          "emojis": "👨,😊,👜,✨",
+          "question": {
+            "type": "prediction",
+            "prompt": "What is in the little bag?",
+            "options": [
+              "A spider",
+              "A reward for the boys",
+              "His lunch"
+            ],
+            "answer": "A reward for the boys",
+            "hint": "Why would he have a bag ready?"
+          }
+        },
+        {
+          "text": "Inside were two shiny silver compasses for the boys.",
+          "emojis": "🧭,🧭,✨,👦"
+        },
+        {
+          "text": "\"For brave young treasure hunters,\" he said proudly.",
+          "emojis": "👨,🏆,😊,🎖️"
+        },
+        {
+          "text": "Ben and Sam grinned. They had something even better than gold.",
+          "emojis": "👦,👦,😄,🧭",
+          "question": {
+            "type": "retrieval",
+            "prompt": "What did the man give them?",
+            "options": [
+              "Coins",
+              "Two silver compasses",
+              "Spades"
+            ],
+            "answer": "Two silver compasses",
+            "hint": "Look at page 17."
+          }
+        },
+        {
+          "text": "They held their compasses tight all the way home.",
+          "emojis": "🧭,🚗,🏡,😊"
+        }
+      ]
+    },
+    {
+      "title": "The Magic Pencil",
+      "subtitle": "An ordinary pencil turns out to be anything but.",
+      "palette": [
+        "#8338EC",
+        "#E9C46A",
+        "#2A9D8F"
+      ],
+      "pages": [
+        {
+          "text": "Ruby found a yellow pencil in her grandma's old box.",
+          "emojis": "👧,✏️,📦,🟡"
+        },
+        {
+          "text": "It looked normal. Just an old wooden pencil.",
+          "emojis": "✏️,🪵,🤷,🔍"
+        },
+        {
+          "text": "She took it to her desk to do her drawing.",
+          "emojis": "👧,🖼️,✏️,💺"
+        },
+        {
+          "text": "She drew a small red apple on the paper.",
+          "emojis": "🍎,📄,✏️,🔴",
+          "question": {
+            "type": "prediction",
+            "prompt": "What do you think the magic pencil will do?",
+            "options": [
+              "Break",
+              "Make the apple real",
+              "Write a story"
+            ],
+            "answer": "Make the apple real",
+            "hint": "The pencil is magic!"
+          }
+        },
+        {
+          "text": "POP! A real red apple appeared on her desk.",
+          "emojis": "🍎,✨,💥,😮"
+        },
+        {
+          "text": "Ruby picked it up. It felt cold and smooth.",
+          "emojis": "🍎,👋,❄️,👧"
+        },
+        {
+          "text": "She took a bite. It tasted sweet and juicy.",
+          "emojis": "🍎,😋,👅,💧",
+          "question": {
+            "type": "skimscan",
+            "prompt": "Find a word that tells you how the apple tasted.",
+            "options": [
+              "sweet",
+              "old",
+              "cold"
+            ],
+            "answer": "sweet",
+            "hint": "Look at page 7 again."
+          }
+        },
+        {
+          "text": "Ruby smiled. She had to try drawing something else.",
+          "emojis": "👧,💡,✏️,😊"
+        },
+        {
+          "text": "She drew a brown puppy with a wagging tail.",
+          "emojis": "🐶,🤎,✏️,🐕"
+        },
+        {
+          "text": "POP! A real puppy jumped onto her lap.",
+          "emojis": "🐶,✨,👧,💕",
+          "question": {
+            "type": "retrieval",
+            "prompt": "What did Ruby draw second?",
+            "options": [
+              "An apple",
+              "A puppy",
+              "A tree"
+            ],
+            "answer": "A puppy",
+            "hint": "Look back at page 9."
+          }
+        },
+        {
+          "text": "The puppy licked her hand and yipped happily.",
+          "emojis": "🐶,💧,👋,😄"
+        },
+        {
+          "text": "Ruby kept drawing. Soon her room was full of things.",
+          "emojis": "👧,🎨,📦,😆"
+        },
+        {
+          "text": "But the puppy looked sad. It missed its real home.",
+          "emojis": "🐶,😢,💭,🏡",
+          "question": {
+            "type": "inference",
+            "prompt": "Why did the puppy look sad?",
+            "options": [
+              "It was hungry",
+              "It missed its real home",
+              "It was tired"
+            ],
+            "answer": "It missed its real home",
+            "hint": "What was the puppy thinking about?"
+          }
+        },
+        {
+          "text": "Ruby thought hard. The pencil could undo things too.",
+          "emojis": "👧,🤔,✏️,💭"
+        },
+        {
+          "text": "She drew a line through the puppy and POOF!",
+          "emojis": "✏️,❌,💨,🐶"
+        },
+        {
+          "text": "Then she drew a happy puppy with a real family.",
+          "emojis": "🐶,👨‍👩‍👧,😊,❤️",
+          "question": {
+            "type": "prediction",
+            "prompt": "What do you think will happen to the puppy?",
+            "options": [
+              "It will go to a kind family",
+              "It will run away",
+              "It will fly"
+            ],
+            "answer": "It will go to a kind family",
+            "hint": "Think about what Ruby drew."
+          }
+        },
+        {
+          "text": "POP! A note appeared. \"Your puppy is safe with us!\"",
+          "emojis": "📄,💌,🐶,😊"
+        },
+        {
+          "text": "Ruby felt warm and happy. She put the pencil away.",
+          "emojis": "👧,😊,✏️,📦"
+        },
+        {
+          "text": "From then on, she only used it when really needed.",
+          "emojis": "👧,✏️,⏳,💡",
+          "question": {
+            "type": "retrieval",
+            "prompt": "Where did Ruby put the pencil at the end?",
+            "options": [
+              "In her pocket",
+              "Away in the box",
+              "On her desk"
+            ],
+            "answer": "Away in the box",
+            "hint": "Look at page 18."
+          }
+        },
+        {
+          "text": "And the apple on her desk? She ate that for lunch.",
+          "emojis": "🍎,😋,🍽️,👧"
+        }
+      ]
+    },
+    {
+      "title": "The Robot in the Shed",
+      "subtitle": "Jack finds a friend with bolts and a battery.",
+      "palette": [
+        "#3A86FF",
+        "#F4A261",
+        "#2A9D8F"
+      ],
+      "pages": [
+        {
+          "text": "Jack went into the garden shed to find his bike.",
+          "emojis": "👦,🚲,🏚️,🌳"
+        },
+        {
+          "text": "He heard a strange beeping sound from the back.",
+          "emojis": "🔔,👂,❓,🏚️"
+        },
+        {
+          "text": "Behind some old boxes, Jack saw two glowing eyes.",
+          "emojis": "📦,👀,💡,😯"
+        },
+        {
+          "text": "Jack stepped closer. What was hiding back there?",
+          "emojis": "👦,👣,🤔,📦",
+          "question": {
+            "type": "prediction",
+            "prompt": "What might be glowing in the shed?",
+            "options": [
+              "A cat",
+              "A robot",
+              "A torch"
+            ],
+            "answer": "A robot",
+            "hint": "Look at the title of the book."
+          }
+        },
+        {
+          "text": "It was a small silver robot with blinking lights.",
+          "emojis": "🤖,⚙️,💡,✨"
+        },
+        {
+          "text": "\"Hello,\" it said in a tinny little voice.",
+          "emojis": "🤖,💬,👋,🔊"
+        },
+        {
+          "text": "The robot's name was Bolt. He had been hiding for days.",
+          "emojis": "🤖,😅,🏚️,⏳",
+          "question": {
+            "type": "skimscan",
+            "prompt": "What is the robot's name?",
+            "options": [
+              "Beep",
+              "Bolt",
+              "Bobby"
+            ],
+            "answer": "Bolt",
+            "hint": "Look at page 7."
+          }
+        },
+        {
+          "text": "Jack offered him a chocolate biscuit, just in case.",
+          "emojis": "🍪,🤖,👦,😊"
+        },
+        {
+          "text": "Bolt put it on his head and giggled robot-laughs.",
+          "emojis": "🍪,🤖,🤣,😆"
+        },
+        {
+          "text": "Bolt could juggle, dance, and even tell good jokes.",
+          "emojis": "🤹,💃,😂,🤖",
+          "question": {
+            "type": "retrieval",
+            "prompt": "What three things can Bolt do?",
+            "options": [
+              "Juggle, dance, tell jokes",
+              "Sing, fly, cook",
+              "Run, swim, drive"
+            ],
+            "answer": "Juggle, dance, tell jokes",
+            "hint": "Look at page 10 for the list."
+          }
+        },
+        {
+          "text": "Jack and Bolt played all afternoon in the garden.",
+          "emojis": "👦,🤖,🌳,🎈"
+        },
+        {
+          "text": "But when the sun went down, Bolt's lights went dim.",
+          "emojis": "🌅,🤖,💡,🔅"
+        },
+        {
+          "text": "Bolt looked at Jack and whispered, \"I am running low.\"",
+          "emojis": "🤖,👦,💬,🔋",
+          "question": {
+            "type": "inference",
+            "prompt": "Why were Bolt's lights going dim?",
+            "options": [
+              "It was bedtime",
+              "His battery was low",
+              "He was sad"
+            ],
+            "answer": "His battery was low",
+            "hint": "Robots need power to work."
+          }
+        },
+        {
+          "text": "Jack rushed to the kitchen and grabbed some batteries.",
+          "emojis": "👦,🔋,🔋,🏃"
+        },
+        {
+          "text": "He gently put the new batteries inside Bolt's back.",
+          "emojis": "🔋,🤖,🔧,💚"
+        },
+        {
+          "text": "Bolt sat up tall. His lights flashed bright again.",
+          "emojis": "🤖,✨,💡,⚡",
+          "question": {
+            "type": "prediction",
+            "prompt": "What will Bolt and Jack do next?",
+            "options": [
+              "Go inside and watch TV",
+              "Have more adventures",
+              "Take a nap"
+            ],
+            "answer": "Have more adventures",
+            "hint": "Best friends like to do fun things together."
+          }
+        },
+        {
+          "text": "\"You saved me, friend!\" Bolt said with a happy beep.",
+          "emojis": "🤖,👦,🎉,💚"
+        },
+        {
+          "text": "From that day on, they shared all their adventures.",
+          "emojis": "🤖,👦,🌟,🎨"
+        },
+        {
+          "text": "Jack kept Bolt's secret. Their bond would last forever.",
+          "emojis": "🤐,🤖,👦,❤️",
+          "question": {
+            "type": "retrieval",
+            "prompt": "What did Jack put inside Bolt?",
+            "options": [
+              "A chocolate biscuit",
+              "New batteries",
+              "A note"
+            ],
+            "answer": "New batteries",
+            "hint": "Look at page 15."
+          }
+        },
+        {
+          "text": "And the bike? He found it the next day, with help.",
+          "emojis": "🚲,🤖,👦,😆"
+        }
+      ]
+    },
+    {
+      "title": "Sports Day Surprise",
+      "subtitle": "Anna's not fast, but she has one more chance.",
+      "palette": [
+        "#E63946",
+        "#F4A261",
+        "#2A9D8F"
+      ],
+      "pages": [
+        {
+          "text": "It was Sports Day at Anna's school. The sun was hot.",
+          "emojis": "🏫,☀️,🏃,😊"
+        },
+        {
+          "text": "Anna was not very fast. She always came last in races.",
+          "emojis": "👧,🏃,🐢,😟"
+        },
+        {
+          "text": "Her best friend Jay said, \"Just have fun out there!\"",
+          "emojis": "👦,👧,💚,💪"
+        },
+        {
+          "text": "Anna's first race was the sprint. She came eighth.",
+          "emojis": "🏃,8️⃣,😞,💨",
+          "question": {
+            "type": "prediction",
+            "prompt": "What might Anna do after losing?",
+            "options": [
+              "Go home",
+              "Keep trying",
+              "Cry"
+            ],
+            "answer": "Keep trying",
+            "hint": "Anna sounds brave."
+          }
+        },
+        {
+          "text": "She did not give up. She tried the long jump next.",
+          "emojis": "🤸,👧,💪,😤"
+        },
+        {
+          "text": "But Anna only jumped a little way. Other kids jumped further.",
+          "emojis": "📏,👧,😔,🥲"
+        },
+        {
+          "text": "Anna sat on the grass. She felt small and sad.",
+          "emojis": "👧,🌿,😢,💔",
+          "question": {
+            "type": "skimscan",
+            "prompt": "Find the word that tells you how Anna felt.",
+            "options": [
+              "small",
+              "tall",
+              "loud"
+            ],
+            "answer": "small",
+            "hint": "Look at page 7."
+          }
+        },
+        {
+          "text": "Then she saw a flyer pinned to the noticeboard.",
+          "emojis": "📋,📌,👀,❓"
+        },
+        {
+          "text": "\"Egg and spoon race! Last race of the day!\" it said.",
+          "emojis": "🥚,🥄,🏃,⏰"
+        },
+        {
+          "text": "Anna had practised this race a hundred times at home.",
+          "emojis": "🥚,🥄,🏡,💯",
+          "question": {
+            "type": "retrieval",
+            "prompt": "How many times had Anna practised?",
+            "options": [
+              "A hundred",
+              "Ten",
+              "A few"
+            ],
+            "answer": "A hundred",
+            "hint": "Look at page 10."
+          }
+        },
+        {
+          "text": "She joined the line at the start. Her hand was steady.",
+          "emojis": "👧,🚥,✋,😌"
+        },
+        {
+          "text": "Bang! The whistle blew. Everyone began to walk fast.",
+          "emojis": "📣,💨,🚶,🥚"
+        },
+        {
+          "text": "Other kids tried to run, but their eggs kept falling.",
+          "emojis": "🥚,💥,😩,👦",
+          "question": {
+            "type": "inference",
+            "prompt": "Why were the other kids' eggs falling?",
+            "options": [
+              "The eggs were broken",
+              "They were going too fast",
+              "It was windy"
+            ],
+            "answer": "They were going too fast",
+            "hint": "What happens when you run with a spoon?"
+          }
+        },
+        {
+          "text": "Anna walked smoothly. Her egg sat still on the spoon.",
+          "emojis": "👧,🥚,🥄,🌟"
+        },
+        {
+          "text": "She was now in the lead, with the finish line in sight.",
+          "emojis": "🏁,👧,🥚,🥄"
+        },
+        {
+          "text": "Just one more step. Anna held her breath and pushed forward.",
+          "emojis": "👣,😤,🥚,🥄",
+          "question": {
+            "type": "prediction",
+            "prompt": "What will happen in the last step?",
+            "options": [
+              "She drops the egg",
+              "She wins",
+              "She trips"
+            ],
+            "answer": "She wins",
+            "hint": "She's so close!"
+          }
+        },
+        {
+          "text": "She crossed the line! Anna had won first place!",
+          "emojis": "🏁,🥇,👧,🎉"
+        },
+        {
+          "text": "Jay ran over. \"You did it!\" he shouted, hugging her.",
+          "emojis": "👦,👧,🤗,🎊"
+        },
+        {
+          "text": "Anna held up her gold medal. It felt like sunshine.",
+          "emojis": "🥇,☀️,👧,✨",
+          "question": {
+            "type": "retrieval",
+            "prompt": "What kind of medal did Anna win?",
+            "options": [
+              "Silver",
+              "Gold",
+              "Bronze"
+            ],
+            "answer": "Gold",
+            "hint": "Look at page 19."
+          }
+        },
+        {
+          "text": "Slow and steady had won the race. Anna walked home proud.",
+          "emojis": "🐢,🥇,🏡,😊"
+        }
+      ]
+    },
+    {
+      "title": "The Camping Trip",
+      "subtitle": "Things go bump in the night for Leo and Pop.",
+      "palette": [
+        "#264653",
+        "#2A9D8F",
+        "#E9C46A"
+      ],
+      "pages": [
+        {
+          "text": "Leo and his pop drove to the woods to camp.",
+          "emojis": "🚗,🌲,👴,👦"
+        },
+        {
+          "text": "They pitched their bright orange tent under a big oak tree.",
+          "emojis": "⛺,🟠,🌳,💪"
+        },
+        {
+          "text": "Pop made a small fire and cooked beans for tea.",
+          "emojis": "🔥,🥫,🍳,😋"
+        },
+        {
+          "text": "After tea, Leo heard a rustling sound in the bushes.",
+          "emojis": "👂,🌿,❓,😟",
+          "question": {
+            "type": "prediction",
+            "prompt": "What do you think made the rustling sound?",
+            "options": [
+              "A monster",
+              "An animal",
+              "The wind"
+            ],
+            "answer": "An animal",
+            "hint": "Camping happens in nature."
+          }
+        },
+        {
+          "text": "Pop shone his torch into the bushes. Two eyes glowed.",
+          "emojis": "🔦,👀,🌿,😯"
+        },
+        {
+          "text": "A small fox stepped out. It sniffed the air.",
+          "emojis": "🦊,👃,💨,🌙"
+        },
+        {
+          "text": "Pop whispered, \"Stay still, Leo. We won't scare it.\"",
+          "emojis": "👴,🤫,👦,🦊",
+          "question": {
+            "type": "skimscan",
+            "prompt": "What word means 'don't move'?",
+            "options": [
+              "whispered",
+              "still",
+              "scare"
+            ],
+            "answer": "still",
+            "hint": "Re-read page 7."
+          }
+        },
+        {
+          "text": "The fox looked at them, then trotted back into the trees.",
+          "emojis": "🦊,👀,🌲,👣"
+        },
+        {
+          "text": "Leo and Pop climbed into the tent and zipped it shut.",
+          "emojis": "👦,👴,⛺,🔐"
+        },
+        {
+          "text": "Inside, Pop told a story about when he was a boy.",
+          "emojis": "👴,📖,💭,👦",
+          "question": {
+            "type": "retrieval",
+            "prompt": "Who told the story in the tent?",
+            "options": [
+              "Leo",
+              "Pop",
+              "The fox"
+            ],
+            "answer": "Pop",
+            "hint": "Look at page 10."
+          }
+        },
+        {
+          "text": "Leo's eyes got heavy. The fire crackled softly outside.",
+          "emojis": "😴,👀,🔥,🎶"
+        },
+        {
+          "text": "In the middle of the night, Leo woke up to a noise.",
+          "emojis": "🌙,⏰,👦,👂"
+        },
+        {
+          "text": "Something was tugging at his sleeping bag from outside.",
+          "emojis": "🛏️,❓,⛺,😨",
+          "question": {
+            "type": "inference",
+            "prompt": "Why was Leo's heart beating fast?",
+            "options": [
+              "He was hot",
+              "He was scared",
+              "He was hungry"
+            ],
+            "answer": "He was scared",
+            "hint": "Something is tugging in the dark."
+          }
+        },
+        {
+          "text": "Leo nudged Pop. They both peeked outside very slowly.",
+          "emojis": "👦,👴,👀,⛺"
+        },
+        {
+          "text": "It was the little fox, pulling at the tent for fun!",
+          "emojis": "🦊,⛺,😂,🤗"
+        },
+        {
+          "text": "Pop laughed loudly. Leo laughed too, his fear all gone.",
+          "emojis": "👴,👦,😄,🤣",
+          "question": {
+            "type": "prediction",
+            "prompt": "What might the fox do now?",
+            "options": [
+              "Run away",
+              "Stay and play",
+              "Bite them"
+            ],
+            "answer": "Run away",
+            "hint": "Wild animals run from loud sounds."
+          }
+        },
+        {
+          "text": "The fox jumped back and dashed into the dark woods.",
+          "emojis": "🦊,💨,🌲,🌑"
+        },
+        {
+          "text": "They zipped the tent shut tight and snuggled down.",
+          "emojis": "⛺,🔐,🛏️,😊"
+        },
+        {
+          "text": "In the morning, Pop made pancakes on the little stove.",
+          "emojis": "🥞,🔥,👴,☀️",
+          "question": {
+            "type": "retrieval",
+            "prompt": "What did Pop make for breakfast?",
+            "options": [
+              "Beans",
+              "Pancakes",
+              "Eggs"
+            ],
+            "answer": "Pancakes",
+            "hint": "Look at page 19."
+          }
+        },
+        {
+          "text": "Leo would always remember his first camping adventure.",
+          "emojis": "👦,⛺,💭,❤️"
+        }
+      ]
+    },
+    {
+      "title": "The Birthday Surprise",
+      "subtitle": "How do you keep a secret from your best friend?",
+      "palette": [
+        "#FB6F92",
+        "#E9C46A",
+        "#2A9D8F"
+      ],
+      "pages": [
+        {
+          "text": "It was Maya's birthday on Saturday. She was turning seven.",
+          "emojis": "🎂,📅,👧,7️⃣"
+        },
+        {
+          "text": "Her brother Sam wanted to plan a surprise party for her.",
+          "emojis": "👦,🎉,💡,💚"
+        },
+        {
+          "text": "He asked Mum and Dad to help him keep it secret.",
+          "emojis": "👦,👨,👩,🤫"
+        },
+        {
+          "text": "Maya kept asking, \"What are you all whispering about?\"",
+          "emojis": "👧,❓,🤔,🤨",
+          "question": {
+            "type": "prediction",
+            "prompt": "How will they keep the secret?",
+            "options": [
+              "Tell her",
+              "Pretend it's normal",
+              "Hide from her"
+            ],
+            "answer": "Pretend it's normal",
+            "hint": "Surprises need to be hidden."
+          }
+        },
+        {
+          "text": "Sam made invitations with sparkly pens and sent them out.",
+          "emojis": "✉️,✨,✏️,💌"
+        },
+        {
+          "text": "He hid them inside his sock drawer. Maya never looked there.",
+          "emojis": "🧦,📦,🤫,😆"
+        },
+        {
+          "text": "Mum baked a cake while Maya was at her dance class.",
+          "emojis": "👩,🎂,💃,🍰",
+          "question": {
+            "type": "skimscan",
+            "prompt": "Where was Maya when Mum baked?",
+            "options": [
+              "At school",
+              "At dance class",
+              "At a friend's"
+            ],
+            "answer": "At dance class",
+            "hint": "Read page 7 again."
+          }
+        },
+        {
+          "text": "Dad blew up balloons in the garage with a noisy pump.",
+          "emojis": "👨,🎈,💨,🔧"
+        },
+        {
+          "text": "Maya heard the pump and asked, \"What's that noise?\"",
+          "emojis": "👧,👂,❓,🤨"
+        },
+        {
+          "text": "Dad said quickly, \"Just fixing the lawnmower!\"",
+          "emojis": "👨,🌱,⚙️,😅",
+          "question": {
+            "type": "retrieval",
+            "prompt": "What did Dad say he was fixing?",
+            "options": [
+              "The car",
+              "The lawnmower",
+              "The fence"
+            ],
+            "answer": "The lawnmower",
+            "hint": "Look at page 10."
+          }
+        },
+        {
+          "text": "On Saturday, all of Maya's friends arrived very quietly.",
+          "emojis": "👫,👬,🤫,🚪"
+        },
+        {
+          "text": "They hid behind the sofa, the curtains, and the big chair.",
+          "emojis": "🛋️,🪟,🪑,🤫"
+        },
+        {
+          "text": "Maya walked into the lounge and stopped. It looked empty.",
+          "emojis": "👧,🚪,🛋️,😕",
+          "question": {
+            "type": "inference",
+            "prompt": "Why did Maya look puzzled?",
+            "options": [
+              "The room was a mess",
+              "She thought no one was there",
+              "She lost her shoes"
+            ],
+            "answer": "She thought no one was there",
+            "hint": "What did she expect to see?"
+          }
+        },
+        {
+          "text": "Suddenly, everyone jumped out shouting, \"SURPRISE!\"",
+          "emojis": "🎉,🎊,😱,💥"
+        },
+        {
+          "text": "Maya's eyes went wide. She put her hands to her face.",
+          "emojis": "👧,👀,😯,✋"
+        },
+        {
+          "text": "Then her face broke into the biggest smile of her life.",
+          "emojis": "👧,😄,😁,❤️",
+          "question": {
+            "type": "prediction",
+            "prompt": "What might Maya say next?",
+            "options": [
+              "Go away",
+              "Thank you so much",
+              "I'm tired"
+            ],
+            "answer": "Thank you so much",
+            "hint": "She's happy!"
+          }
+        },
+        {
+          "text": "\"Thank you all so much!\" she said, hugging Sam tight.",
+          "emojis": "👧,🤗,👦,💕"
+        },
+        {
+          "text": "They had cake, games, and Dad's funny party magic show.",
+          "emojis": "🎂,🎲,🎩,🤣"
+        },
+        {
+          "text": "Maya looked around and felt the luckiest girl ever.",
+          "emojis": "👧,🍀,💚,⭐",
+          "question": {
+            "type": "retrieval",
+            "prompt": "Who hugged Maya tightly?",
+            "options": [
+              "Mum",
+              "Sam",
+              "Dad"
+            ],
+            "answer": "Sam",
+            "hint": "Look at page 17."
+          }
+        },
+        {
+          "text": "Best birthday ever, made by the best brother ever.",
+          "emojis": "🎂,🏆,👦,❤️"
+        }
+      ]
+    },
+    {
+      "title": "The Brave Hedgehog",
+      "subtitle": "Hattie wants to cross the lane to reach her friends.",
+      "palette": [
+        "#8B5A2B",
+        "#2A9D8F",
+        "#F4A261"
+      ],
+      "pages": [
+        {
+          "text": "Hattie was a small hedgehog who lived in a hedge.",
+          "emojis": "🦔,🌿,🏡,🍃"
+        },
+        {
+          "text": "Across the lane there was a garden full of slugs.",
+          "emojis": "🌷,🌳,🐌,🍃"
+        },
+        {
+          "text": "Hattie loved slugs. They were her favourite snack.",
+          "emojis": "🦔,🐌,😋,❤️"
+        },
+        {
+          "text": "But the lane was wide and cars zoomed past very fast.",
+          "emojis": "🛣️,🚗,💨,😟",
+          "question": {
+            "type": "prediction",
+            "prompt": "What might Hattie need to do?",
+            "options": [
+              "Stay home",
+              "Cross safely",
+              "Fly over"
+            ],
+            "answer": "Cross safely",
+            "hint": "She wants the slugs."
+          }
+        },
+        {
+          "text": "One night, Hattie peeked out at the silent dark lane.",
+          "emojis": "🦔,🌙,🛣️,👀"
+        },
+        {
+          "text": "She heard a small voice. \"I will help you,\" it said.",
+          "emojis": "🦔,💬,❓,🌙"
+        },
+        {
+          "text": "It was Tilly the tabby cat from next door.",
+          "emojis": "🐱,🌳,🏡,😊",
+          "question": {
+            "type": "skimscan",
+            "prompt": "What is the cat's name?",
+            "options": [
+              "Tilly",
+              "Hattie",
+              "Tabby"
+            ],
+            "answer": "Tilly",
+            "hint": "Read page 7 again."
+          }
+        },
+        {
+          "text": "\"I can see in the dark,\" said Tilly. \"I'll watch for cars.\"",
+          "emojis": "🐱,🌑,👀,💪"
+        },
+        {
+          "text": "Hattie was nervous but she trusted her new friend.",
+          "emojis": "🦔,😟,🐱,💚"
+        },
+        {
+          "text": "Tilly looked left and right. \"All clear,\" she purred.",
+          "emojis": "🐱,⬅️,➡️,😊",
+          "question": {
+            "type": "retrieval",
+            "prompt": "Who watched for cars?",
+            "options": [
+              "Hattie",
+              "A bird",
+              "Tilly"
+            ],
+            "answer": "Tilly",
+            "hint": "Look at page 10."
+          }
+        },
+        {
+          "text": "Hattie waddled across the wide grey road as fast as she could.",
+          "emojis": "🦔,🏃,🛣️,💨"
+        },
+        {
+          "text": "Halfway across, she saw bright lights coming round the bend!",
+          "emojis": "🦔,💡,💡,😱"
+        },
+        {
+          "text": "Hattie froze. Her tiny legs would not move at all.",
+          "emojis": "🦔,🧊,🦶,😨",
+          "question": {
+            "type": "inference",
+            "prompt": "Why couldn't Hattie's legs move?",
+            "options": [
+              "She was tired",
+              "She was so scared",
+              "She was hurt"
+            ],
+            "answer": "She was so scared",
+            "hint": "What happens when we are very frightened?"
+          }
+        },
+        {
+          "text": "Tilly's ears twitched. She knew exactly what to do.",
+          "emojis": "🐱,👂,💡,💪"
+        },
+        {
+          "text": "She dashed into the road and stood right next to Hattie.",
+          "emojis": "🐱,🛣️,🦔,❤️"
+        },
+        {
+          "text": "Tilly's eyes shone bright. The driver saw them and slowed.",
+          "emojis": "🐱,✨,🚗,🛑",
+          "question": {
+            "type": "prediction",
+            "prompt": "What will the car do?",
+            "options": [
+              "Stop and let them pass",
+              "Beep loudly",
+              "Speed up"
+            ],
+            "answer": "Stop and let them pass",
+            "hint": "A kind driver would stop."
+          }
+        },
+        {
+          "text": "The car stopped. Tilly gently nudged Hattie to the kerb.",
+          "emojis": "🚗,🛑,🐱,🦔"
+        },
+        {
+          "text": "They made it! Hattie shook her spikes and giggled.",
+          "emojis": "🦔,🤣,⚡,🎉"
+        },
+        {
+          "text": "She found ten plump slugs in the garden that night.",
+          "emojis": "🐌,🐌,🦔,😋",
+          "question": {
+            "type": "retrieval",
+            "prompt": "How many slugs did Hattie find?",
+            "options": [
+              "Five",
+              "Ten",
+              "Twenty"
+            ],
+            "answer": "Ten",
+            "hint": "Look at page 19."
+          }
+        },
+        {
+          "text": "Brave Hattie and kind Tilly were best friends forever.",
+          "emojis": "🦔,🐱,👯,❤️"
+        }
+      ]
+    }
+  ],
+  "freddie": [
+    {
+      "title": "Splash, Splash!",
+      "subtitle": "Bath time fun!",
+      "palette": [
+        "#3A86FF",
+        "#F4A261",
+        "#E9C46A"
+      ],
+      "pages": [
+        {
+          "text": "It is bath time for Tom!",
+          "emojis": "🛁,💧,👦,😊"
+        },
+        {
+          "text": "In go the duck and the boat.",
+          "emojis": "🦆,⛵,🛁,💧"
+        },
+        {
+          "text": "In jumps Tom! Splash!",
+          "emojis": "👦,💦,🛁,😄"
+        },
+        {
+          "text": "The water is warm and bubbly.",
+          "emojis": "💧,🫧,☁️,😌",
+          "question": {
+            "type": "retrieval",
+            "prompt": "Whose bath time is it?",
+            "options": [
+              "Tom",
+              "Sam",
+              "Ben"
+            ],
+            "answer": "Tom",
+            "hint": "Look at page 1."
+          }
+        },
+        {
+          "text": "Tom splashes the yellow duck.",
+          "emojis": "🦆,💦,👦,🟡"
+        },
+        {
+          "text": "Splash, splash, quack, quack!",
+          "emojis": "💦,💦,🦆,😆"
+        },
+        {
+          "text": "Tom washes his hands. Bubbles everywhere!",
+          "emojis": "🫧,✋,🧼,😄",
+          "question": {
+            "type": "retrieval",
+            "prompt": "What colour is the duck?",
+            "options": [
+              "Red",
+              "Blue",
+              "Yellow"
+            ],
+            "answer": "Yellow",
+            "hint": "Look at page 5."
+          }
+        },
+        {
+          "text": "Now Tom washes his curly hair.",
+          "emojis": "🧴,💆,👦,😊"
+        },
+        {
+          "text": "Rub a dub dub, foamy as a cloud.",
+          "emojis": "☁️,🫧,💆,😄"
+        },
+        {
+          "text": "The water gets cold. Time to get out.",
+          "emojis": "❄️,💧,🛁,🥶",
+          "question": {
+            "type": "retrieval",
+            "prompt": "What does Tom wash?",
+            "options": [
+              "His hair",
+              "His shoes",
+              "His toys"
+            ],
+            "answer": "His hair",
+            "hint": "Look at page 8."
+          }
+        },
+        {
+          "text": "Out hops Tom in a big fluffy towel.",
+          "emojis": "🛀,🏻,☁️,😊"
+        },
+        {
+          "text": "Soft pyjamas and warm slippers on.",
+          "emojis": "👕,🥿,😊,💚"
+        },
+        {
+          "text": "Tom yawns. Time for bed.",
+          "emojis": "😴,🛏️,⭐,🌙",
+          "question": {
+            "type": "retrieval",
+            "prompt": "What does Tom do at the end?",
+            "options": [
+              "Goes to bed",
+              "Eats dinner",
+              "Goes outside"
+            ],
+            "answer": "Goes to bed",
+            "hint": "Look at page 13."
+          }
+        },
+        {
+          "text": "Night night, splashy Tom!",
+          "emojis": "🌙,😴,👦,💤"
+        }
+      ]
+    },
+    {
+      "title": "The Big Red Bus",
+      "subtitle": "All aboard with Lily and Dad!",
+      "palette": [
+        "#E63946",
+        "#F4A261",
+        "#2A9D8F"
+      ],
+      "pages": [
+        {
+          "text": "Lily and Dad wait at the bus stop.",
+          "emojis": "👧,👨,🚏,⏰"
+        },
+        {
+          "text": "Here it comes! A big red bus!",
+          "emojis": "🚌,🔴,👀,😄"
+        },
+        {
+          "text": "The doors go beep-beep and slide open.",
+          "emojis": "🚪,🔔,💨,😊"
+        },
+        {
+          "text": "Lily climbs the steps. Up, up, up!",
+          "emojis": "👧,👣,⬆️,🚌",
+          "question": {
+            "type": "retrieval",
+            "prompt": "What colour is the bus?",
+            "options": [
+              "Blue",
+              "Red",
+              "Green"
+            ],
+            "answer": "Red",
+            "hint": "Look at page 2."
+          }
+        },
+        {
+          "text": "They sit at the very front, upstairs.",
+          "emojis": "💺,🚌,👧,👀"
+        },
+        {
+          "text": "Brmm! Off goes the bus down the road.",
+          "emojis": "🚌,💨,🛣️,😆"
+        },
+        {
+          "text": "Lily can see treetops out the window!",
+          "emojis": "🌳,🪟,👀,👧",
+          "question": {
+            "type": "retrieval",
+            "prompt": "Where do they sit?",
+            "options": [
+              "At the back",
+              "At the front upstairs",
+              "On the floor"
+            ],
+            "answer": "At the front upstairs",
+            "hint": "Look at page 5."
+          }
+        },
+        {
+          "text": "Past a park. Past a duck pond. Past shops.",
+          "emojis": "🌳,🦆,🏪,🚌"
+        },
+        {
+          "text": "Ding! Dad presses the bell to stop.",
+          "emojis": "🔔,👨,✋,🚌"
+        },
+        {
+          "text": "Down they go. Step, step, step.",
+          "emojis": "⬇️,👣,👣,👣",
+          "question": {
+            "type": "retrieval",
+            "prompt": "Who presses the bell?",
+            "options": [
+              "Lily",
+              "Dad",
+              "The driver"
+            ],
+            "answer": "Dad",
+            "hint": "Look at page 9."
+          }
+        },
+        {
+          "text": "Off the bus. The driver waves goodbye.",
+          "emojis": "👋,🚌,👨,😊"
+        },
+        {
+          "text": "Lily and Dad walk to Granny's house.",
+          "emojis": "👧,👨,🏡,🚶"
+        },
+        {
+          "text": "Granny has cake. Yummy yum!",
+          "emojis": "👵,🎂,😋,💚",
+          "question": {
+            "type": "retrieval",
+            "prompt": "Whose house do they go to?",
+            "options": [
+              "Granny's",
+              "Grandad's",
+              "Auntie's"
+            ],
+            "answer": "Granny's",
+            "hint": "Look at page 12."
+          }
+        },
+        {
+          "text": "What a lovely bus day!",
+          "emojis": "🚌,❤️,👧,👨"
+        }
+      ]
+    },
+    {
+      "title": "Bedtime Bear",
+      "subtitle": "Little Bear is not sleepy. Or is he?",
+      "palette": [
+        "#264653",
+        "#E9C46A",
+        "#F4A261"
+      ],
+      "pages": [
+        {
+          "text": "It is bedtime for Little Bear.",
+          "emojis": "🐻,🌙,🛏️,😊"
+        },
+        {
+          "text": "\"I am not sleepy!\" says Little Bear.",
+          "emojis": "🐻,😆,👀,⭐"
+        },
+        {
+          "text": "Mama Bear smiles. \"Time for pyjamas.\"",
+          "emojis": "🐻,👕,😊,🌙"
+        },
+        {
+          "text": "Little Bear puts on stripey pyjamas.",
+          "emojis": "🐻,👕,😊,🌟",
+          "question": {
+            "type": "retrieval",
+            "prompt": "What does Little Bear put on?",
+            "options": [
+              "A hat",
+              "Pyjamas",
+              "Shoes"
+            ],
+            "answer": "Pyjamas",
+            "hint": "Look at page 4."
+          }
+        },
+        {
+          "text": "Now teeth. Scrub scrub scrub.",
+          "emojis": "🦷,🪥,🐻,✨"
+        },
+        {
+          "text": "Now a wee. Splish splash!",
+          "emojis": "🚽,💧,🐻,😄"
+        },
+        {
+          "text": "Little Bear yawns a great big yawn.",
+          "emojis": "🐻,😮,💨,😴",
+          "question": {
+            "type": "retrieval",
+            "prompt": "What does Little Bear do with his teeth?",
+            "options": [
+              "Pulls them",
+              "Scrubs them",
+              "Eats them"
+            ],
+            "answer": "Scrubs them",
+            "hint": "Look at page 5."
+          }
+        },
+        {
+          "text": "Mama reads a story about the moon.",
+          "emojis": "🐻,🐻,📖,🌙"
+        },
+        {
+          "text": "Little Bear listens. His eyes get heavy.",
+          "emojis": "🐻,👂,👀,💤"
+        },
+        {
+          "text": "Mama tucks him in tight and cosy.",
+          "emojis": "🐻,🛏️,🤗,💕",
+          "question": {
+            "type": "retrieval",
+            "prompt": "What was the story about?",
+            "options": [
+              "The sun",
+              "The moon",
+              "The sea"
+            ],
+            "answer": "The moon",
+            "hint": "Look at page 8."
+          }
+        },
+        {
+          "text": "She kisses his little furry nose.",
+          "emojis": "💋,👃,🐻,💚"
+        },
+        {
+          "text": "\"Night night, sleep tight,\" she whispers.",
+          "emojis": "🐻,🤫,🌙,💤"
+        },
+        {
+          "text": "Little Bear hugs his teddy and closes his eyes.",
+          "emojis": "🐻,🧸,🤗,😴",
+          "question": {
+            "type": "retrieval",
+            "prompt": "What does Little Bear hug?",
+            "options": [
+              "A pillow",
+              "His teddy",
+              "Mama"
+            ],
+            "answer": "His teddy",
+            "hint": "Look at page 13."
+          }
+        },
+        {
+          "text": "Sweet dreams, Little Bear.",
+          "emojis": "🐻,💭,⭐,🌙"
+        }
+      ]
+    },
+    {
+      "title": "Where's Bunny?",
+      "subtitle": "A hide and seek game in the house.",
+      "palette": [
+        "#F4A261",
+        "#E9C46A",
+        "#2A9D8F"
+      ],
+      "pages": [
+        {
+          "text": "Pip is looking for her toy bunny.",
+          "emojis": "👧,🐰,🔍,❓"
+        },
+        {
+          "text": "\"Where are you, Bunny?\" calls Pip.",
+          "emojis": "👧,📢,🐰,❓"
+        },
+        {
+          "text": "Pip looks under the bed. No bunny.",
+          "emojis": "🛏️,⬇️,❌,🐰"
+        },
+        {
+          "text": "Pip looks in the toy box. No bunny.",
+          "emojis": "📦,🧸,❌,🐰",
+          "question": {
+            "type": "retrieval",
+            "prompt": "Who is Pip looking for?",
+            "options": [
+              "Her dog",
+              "Her bunny",
+              "Her ball"
+            ],
+            "answer": "Her bunny",
+            "hint": "Look at page 1."
+          }
+        },
+        {
+          "text": "Pip looks behind the door. No bunny.",
+          "emojis": "🚪,⬅️,❌,🐰"
+        },
+        {
+          "text": "Pip looks in the kitchen. No bunny.",
+          "emojis": "🍳,👀,❌,🐰"
+        },
+        {
+          "text": "Where could she be?",
+          "emojis": "🤔,❓,❓,🐰",
+          "question": {
+            "type": "retrieval",
+            "prompt": "Where did Pip look first?",
+            "options": [
+              "The toy box",
+              "Under the bed",
+              "The kitchen"
+            ],
+            "answer": "Under the bed",
+            "hint": "Look at page 3."
+          }
+        },
+        {
+          "text": "Pip sits down and looks sad.",
+          "emojis": "👧,😢,💔,⏬"
+        },
+        {
+          "text": "Wait! Pip hears something. A little wiggle.",
+          "emojis": "👧,👂,❓,⚡"
+        },
+        {
+          "text": "It is coming from Pip's coat pocket!",
+          "emojis": "🧥,🫳,👀,❓",
+          "question": {
+            "type": "retrieval",
+            "prompt": "Where does the wiggle come from?",
+            "options": [
+              "The bed",
+              "The pocket",
+              "The door"
+            ],
+            "answer": "The pocket",
+            "hint": "Look at page 10."
+          }
+        },
+        {
+          "text": "Pip reaches in. There she is!",
+          "emojis": "👧,🤲,🐰,😍"
+        },
+        {
+          "text": "Bunny was hiding the whole time!",
+          "emojis": "🐰,🫣,😆,😊"
+        },
+        {
+          "text": "Pip gives Bunny a big squishy hug.",
+          "emojis": "👧,🐰,🤗,💕",
+          "question": {
+            "type": "retrieval",
+            "prompt": "What did Pip do when she found Bunny?",
+            "options": [
+              "Cried",
+              "Hugged her",
+              "Ran away"
+            ],
+            "answer": "Hugged her",
+            "hint": "Look at page 13."
+          }
+        },
+        {
+          "text": "Found you, Bunny!",
+          "emojis": "🐰,❤️,👧,🎉"
+        }
+      ]
+    },
+    {
+      "title": "Yum Yum Fruit!",
+      "subtitle": "Sasha tries every colour of fruit.",
+      "palette": [
+        "#E63946",
+        "#2A9D8F",
+        "#F4A261"
+      ],
+      "pages": [
+        {
+          "text": "Sasha is hungry. What can she eat?",
+          "emojis": "👧,🤔,😋,❓"
+        },
+        {
+          "text": "Mum opens the big fruit bowl.",
+          "emojis": "👩,🍎,🍌,😊"
+        },
+        {
+          "text": "Red apples! Crunch crunch!",
+          "emojis": "🍎,🔴,😋,👅"
+        },
+        {
+          "text": "Sasha takes a red apple. Yum!",
+          "emojis": "👧,🍎,😋,💚",
+          "question": {
+            "type": "retrieval",
+            "prompt": "What colour are the apples?",
+            "options": [
+              "Green",
+              "Red",
+              "Yellow"
+            ],
+            "answer": "Red",
+            "hint": "Look at page 3."
+          }
+        },
+        {
+          "text": "Yellow bananas! Soft and sweet.",
+          "emojis": "🍌,🟡,😋,👅"
+        },
+        {
+          "text": "Sasha eats one banana. Yum!",
+          "emojis": "👧,🍌,😋,💚"
+        },
+        {
+          "text": "Orange oranges! Juicy and bright.",
+          "emojis": "🍊,🟠,💧,😋",
+          "question": {
+            "type": "retrieval",
+            "prompt": "What colour are bananas?",
+            "options": [
+              "Red",
+              "Yellow",
+              "Green"
+            ],
+            "answer": "Yellow",
+            "hint": "Look at page 5."
+          }
+        },
+        {
+          "text": "Sasha sucks an orange. Drip drip!",
+          "emojis": "👧,🍊,💧,😆"
+        },
+        {
+          "text": "Purple grapes! Tiny and round.",
+          "emojis": "🍇,🟣,⚪,😋"
+        },
+        {
+          "text": "Pop, pop, pop go the grapes.",
+          "emojis": "🍇,💥,😆,👧",
+          "question": {
+            "type": "retrieval",
+            "prompt": "What colour are grapes?",
+            "options": [
+              "Blue",
+              "Purple",
+              "Green"
+            ],
+            "answer": "Purple",
+            "hint": "Look at page 9."
+          }
+        },
+        {
+          "text": "Pink strawberries! Sasha's favourite.",
+          "emojis": "🍓,🩷,❤️,😍"
+        },
+        {
+          "text": "Sasha tastes one. So sweet!",
+          "emojis": "👧,🍓,😋,❤️"
+        },
+        {
+          "text": "All gone! Sasha's tummy is full.",
+          "emojis": "👧,🍽️,😊,💚",
+          "question": {
+            "type": "retrieval",
+            "prompt": "Which fruit is Sasha's favourite?",
+            "options": [
+              "Apples",
+              "Grapes",
+              "Strawberries"
+            ],
+            "answer": "Strawberries",
+            "hint": "Look at page 11."
+          }
+        },
+        {
+          "text": "Thank you, mummy!",
+          "emojis": "👧,👩,🤗,❤️"
+        }
+      ]
+    },
+    {
+      "title": "Up and Down",
+      "subtitle": "A trip to the playground with friends.",
+      "palette": [
+        "#2A9D8F",
+        "#E9C46A",
+        "#F4A261"
+      ],
+      "pages": [
+        {
+          "text": "Off to the park with Daddy!",
+          "emojis": "👨,👧,🌳,🌞"
+        },
+        {
+          "text": "Up the slide. Whoosh down!",
+          "emojis": "🛝,⬆️,⬇️,😄"
+        },
+        {
+          "text": "Up on the swing. Up, up, up!",
+          "emojis": "👧,⬆️,⬆️,😆"
+        },
+        {
+          "text": "Down on the swing. Wheeeee!",
+          "emojis": "⬇️,💨,😄,👧",
+          "question": {
+            "type": "retrieval",
+            "prompt": "What does she go down on?",
+            "options": [
+              "The slide",
+              "The swing",
+              "The seesaw"
+            ],
+            "answer": "The slide",
+            "hint": "Look at page 2."
+          }
+        },
+        {
+          "text": "Round and round on the roundabout.",
+          "emojis": "🎠,🔄,😆,😵"
+        },
+        {
+          "text": "Up the climbing frame. Step by step.",
+          "emojis": "🪜,⬆️,👣,👣"
+        },
+        {
+          "text": "Down comes the rain. Plip plop!",
+          "emojis": "🌧️,💧,💧,😯",
+          "question": {
+            "type": "retrieval",
+            "prompt": "What goes round and round?",
+            "options": [
+              "The swing",
+              "The roundabout",
+              "The slide"
+            ],
+            "answer": "The roundabout",
+            "hint": "Look at page 5."
+          }
+        },
+        {
+          "text": "Time to go! Run, run, run!",
+          "emojis": "👧,👨,💨,🏃"
+        },
+        {
+          "text": "Into the cafe to keep dry.",
+          "emojis": "☕,🏠,👧,🌧️"
+        },
+        {
+          "text": "Hot chocolate with marshmallows.",
+          "emojis": "☕,☁️,☁️,😋",
+          "question": {
+            "type": "retrieval",
+            "prompt": "What did they drink?",
+            "options": [
+              "Juice",
+              "Hot chocolate",
+              "Water"
+            ],
+            "answer": "Hot chocolate",
+            "hint": "Look at page 10."
+          }
+        },
+        {
+          "text": "Mmm, sweet and warm and cosy.",
+          "emojis": "👧,😋,☕,💚"
+        },
+        {
+          "text": "Look! A rainbow in the sky.",
+          "emojis": "🌈,☁️,👀,😍"
+        },
+        {
+          "text": "Up over the houses and trees.",
+          "emojis": "🏠,🌳,🌈,😊",
+          "question": {
+            "type": "retrieval",
+            "prompt": "What did they see in the sky?",
+            "options": [
+              "A bird",
+              "A rainbow",
+              "The moon"
+            ],
+            "answer": "A rainbow",
+            "hint": "Look at page 12."
+          }
+        },
+        {
+          "text": "What a lovely up and down day!",
+          "emojis": "👧,👨,❤️,🌈"
+        }
+      ]
+    },
+    {
+      "title": "Pop Pop Balloons",
+      "subtitle": "Five bright balloons. Where do they all go?",
+      "palette": [
+        "#E63946",
+        "#3A86FF",
+        "#F4A261"
+      ],
+      "pages": [
+        {
+          "text": "Five bright balloons in Joe's hand.",
+          "emojis": "🎈,🎈,🎈,🎈"
+        },
+        {
+          "text": "Red, blue, green, yellow, pink!",
+          "emojis": "🎈,🎈,🎈,🎈"
+        },
+        {
+          "text": "Whoosh! Off goes the red one.",
+          "emojis": "🎈,💨,⬆️,☁️"
+        },
+        {
+          "text": "Up, up into the sky.",
+          "emojis": "🎈,⬆️,☁️,🌞",
+          "question": {
+            "type": "retrieval",
+            "prompt": "How many balloons did Joe start with?",
+            "options": [
+              "Three",
+              "Four",
+              "Five"
+            ],
+            "answer": "Five",
+            "hint": "Look at page 1."
+          }
+        },
+        {
+          "text": "Four balloons left in Joe's hand.",
+          "emojis": "🎈,🎈,🎈,🎈"
+        },
+        {
+          "text": "Pop! Goes the blue one on a thorn.",
+          "emojis": "🎈,💥,🌹,😯"
+        },
+        {
+          "text": "Three balloons left. Joe holds tight.",
+          "emojis": "🎈,🎈,🎈,✊",
+          "question": {
+            "type": "retrieval",
+            "prompt": "What colour balloon went pop?",
+            "options": [
+              "Red",
+              "Blue",
+              "Green"
+            ],
+            "answer": "Blue",
+            "hint": "Look at page 6."
+          }
+        },
+        {
+          "text": "Whoops! The green one slips away.",
+          "emojis": "🎈,💨,⬆️,😮"
+        },
+        {
+          "text": "Two balloons. Joe needs them safe!",
+          "emojis": "🎈,🎈,👦,😟"
+        },
+        {
+          "text": "Pop! A bird flies into the yellow one.",
+          "emojis": "🎈,💥,🐦,😆",
+          "question": {
+            "type": "retrieval",
+            "prompt": "How many balloons left now?",
+            "options": [
+              "Two",
+              "One",
+              "Three"
+            ],
+            "answer": "One",
+            "hint": "Look at page 10."
+          }
+        },
+        {
+          "text": "Just one balloon. The pink one.",
+          "emojis": "🎈,🩷,👦,😊"
+        },
+        {
+          "text": "Joe ties it tight to his wrist.",
+          "emojis": "🎈,🪢,💪,😎"
+        },
+        {
+          "text": "Safe! Joe runs home with one balloon.",
+          "emojis": "👦,🎈,🏃,🏡",
+          "question": {
+            "type": "retrieval",
+            "prompt": "Where did Joe tie the balloon?",
+            "options": [
+              "To his hat",
+              "To his wrist",
+              "To a tree"
+            ],
+            "answer": "To his wrist",
+            "hint": "Look at page 12."
+          }
+        },
+        {
+          "text": "One pink balloon is plenty!",
+          "emojis": "🎈,🩷,😄,❤️"
+        }
+      ]
+    },
+    {
+      "title": "Night Stars",
+      "subtitle": "What can you see when the day goes dark?",
+      "palette": [
+        "#264653",
+        "#E9C46A",
+        "#8338EC"
+      ],
+      "pages": [
+        {
+          "text": "The sun goes down. Goodbye, day!",
+          "emojis": "🌅,⬇️,👋,☀️"
+        },
+        {
+          "text": "The sky turns dark blue, then black.",
+          "emojis": "🌃,🔵,⚫,🌙"
+        },
+        {
+          "text": "Lulu looks up out of her window.",
+          "emojis": "👧,🪟,⬆️,👀"
+        },
+        {
+          "text": "She sees one tiny star twinkle.",
+          "emojis": "⭐,✨,👀,👧",
+          "question": {
+            "type": "retrieval",
+            "prompt": "What does Lulu see first?",
+            "options": [
+              "The moon",
+              "A star",
+              "A plane"
+            ],
+            "answer": "A star",
+            "hint": "Look at page 4."
+          }
+        },
+        {
+          "text": "Then two. Then ten. Then a hundred!",
+          "emojis": "⭐,⭐,⭐,💯"
+        },
+        {
+          "text": "The stars are little lights in the sky.",
+          "emojis": "⭐,✨,💡,😊"
+        },
+        {
+          "text": "The moon comes out. Big and round.",
+          "emojis": "🌕,⚪,✨,👀",
+          "question": {
+            "type": "retrieval",
+            "prompt": "What shape is the moon?",
+            "options": [
+              "Square",
+              "Round",
+              "Pointy"
+            ],
+            "answer": "Round",
+            "hint": "Look at page 7."
+          }
+        },
+        {
+          "text": "Lulu sees an owl on a branch.",
+          "emojis": "🦉,🌳,🌙,👀"
+        },
+        {
+          "text": "\"Twit twoo!\" says the owl.",
+          "emojis": "🦉,💬,🌙,😊"
+        },
+        {
+          "text": "A fox tip-toes across the garden.",
+          "emojis": "🦊,👣,🌿,🤫",
+          "question": {
+            "type": "retrieval",
+            "prompt": "What animal walks across the garden?",
+            "options": [
+              "A cat",
+              "A fox",
+              "A dog"
+            ],
+            "answer": "A fox",
+            "hint": "Look at page 10."
+          }
+        },
+        {
+          "text": "Lulu yawns. Time for bed.",
+          "emojis": "👧,😮,🌙,🛏️"
+        },
+        {
+          "text": "She climbs into bed with her teddy.",
+          "emojis": "👧,🛏️,🧸,🤗"
+        },
+        {
+          "text": "Mum closes the curtains gently.",
+          "emojis": "👩,🪟,🌃,🤫",
+          "question": {
+            "type": "retrieval",
+            "prompt": "Who closes the curtains?",
+            "options": [
+              "Dad",
+              "Mum",
+              "Lulu"
+            ],
+            "answer": "Mum",
+            "hint": "Look at page 13."
+          }
+        },
+        {
+          "text": "Night night, stars. Night night, Lulu.",
+          "emojis": "🌟,😴,🛏️,💤"
+        }
+      ]
+    }
+  ]
+};
+
+// Pick story for a given week. We use a stable hash of the week string so the choice
+// is consistent for the family, and incrementing the week index naturally cycles forwards.
+function pickStoryFromLibrary(child, weekIso) {
+  const lib = STORY_LIBRARY[child.id];
+  if (!lib || !lib.length) return null;
+  // Parse "2026-W23" → 23
+  const m = weekIso.match(/^(\d+)-W(\d+)$/);
+  if (!m) return lib[0];
+  const year = parseInt(m[1], 10);
+  const week = parseInt(m[2], 10);
+  // 53 weeks max per year; combined index ensures forward progression across year boundary
+  const idx = (year * 53 + week) % lib.length;
+  const story = lib[idx];
+  return {
+    title: story.title,
+    subtitle: story.subtitle,
+    palette: story.palette.slice(),
+    pages: story.pages.map(p => ({ ...p, question: p.question ? { ...p.question } : null })),
+    generatedAt: new Date().toISOString(),
+    week: weekIso,
+    band: bandForChild(child),
+    fromLibrary: true,
+  };
+}
+
 /* ============================ STORY GENERATION ============================ */
 // Defines the chunks for each child. Each chunk is one API call.
 // Page numbers and question types match the pedagogical schedule.
@@ -2203,30 +4500,58 @@ function parseChunkResponse(text, chunk) {
   return out;
 }
 
-// API config is set in Settings and stored in Firebase + localStorage.
+// API config: optional - if not set, we use the Netlify Function proxy at /.netlify/functions/generate-story
+// which uses the ANTHROPIC_API_KEY env var set on Netlify. Falls back to direct API call with user-supplied
+// key for local development.
 let ACTIVE_API_KEY = "";
 let ACTIVE_MODEL = "claude-sonnet-4-5";
 function setActiveApiKey(k) { ACTIVE_API_KEY = (k || "").trim(); }
 function setActiveModel(m) { ACTIVE_MODEL = (m || "claude-sonnet-4-5").trim(); }
 
+// Try the Netlify Function first; if it 404s (e.g. running locally without functions), fall back to direct API call
 async function callChunkApi(prompt, chunk) {
-  if (!ACTIVE_API_KEY) {
-    throw new Error("No API key set. Open Settings and add your Anthropic API key.");
+  // First attempt: Netlify Function (no API key needed on device)
+  let res;
+  let usingProxy = true;
+  try {
+    res = await fetch("/.netlify/functions/generate-story", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: ACTIVE_MODEL,
+        max_tokens: 2048,
+        messages: [{ role: "user", content: prompt }],
+      }),
+    });
+    // If function isn't deployed (404) or returns server error suggesting no key, try direct
+    if (res.status === 404) {
+      usingProxy = false;
+    }
+  } catch (e) {
+    usingProxy = false;
   }
-  const res = await fetch("https://api.anthropic.com/v1/messages", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "x-api-key": ACTIVE_API_KEY,
-      "anthropic-version": "2023-06-01",
-      "anthropic-dangerous-direct-browser-access": "true",
-    },
-    body: JSON.stringify({
-      model: ACTIVE_MODEL,
-      max_tokens: 2048,
-      messages: [{ role: "user", content: prompt }],
-    }),
-  });
+
+  if (!usingProxy) {
+    // Fallback: direct API call with user-supplied key (for local dev or backup)
+    if (!ACTIVE_API_KEY) {
+      throw new Error("Story service unavailable. Either deploy the Netlify Function or add your Anthropic API key in Settings.");
+    }
+    res = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-key": ACTIVE_API_KEY,
+        "anthropic-version": "2023-06-01",
+        "anthropic-dangerous-direct-browser-access": "true",
+      },
+      body: JSON.stringify({
+        model: ACTIVE_MODEL,
+        max_tokens: 2048,
+        messages: [{ role: "user", content: prompt }],
+      }),
+    });
+  }
+
   if (!res.ok) {
     let detail = "";
     try { detail = (await res.text()).slice(0, 200); } catch (e) {}
@@ -2244,7 +4569,16 @@ async function callChunkApi(prompt, chunk) {
   return parsed;
 }
 
-async function generateStory(child, weekIso, onProgress) {
+async function generateStoryFromLibrary(child, weekIso, onProgress) {
+  if (onProgress) onProgress("Loading this week's story...");
+  await new Promise(r => setTimeout(r, 200)); // tiny delay so the loading UI is visible
+  const story = pickStoryFromLibrary(child, weekIso);
+  if (!story) throw new Error("No stories available for " + child.id);
+  return story;
+}
+
+// Legacy AI-driven story generator. Kept as a backup path but not used by default.
+async function _aiGenerateStory(child, weekIso, onProgress) {
   const chunks = CHUNKS_FOR[child.id];
   if (!chunks) throw new Error("Unknown child");
 
@@ -2480,7 +4814,7 @@ function ReadingApp() {
       setLoading(true);
       setLoadMsg("Looking for this week's story...");
       try {
-        const s = await generateStory(child, week, (msg) => setLoadMsg(msg));
+        const s = await generateStoryFromLibrary(child, week, (msg) => setLoadMsg(msg));
         await saveKey(key, s);
         cached = s;
       } catch (e) {
@@ -2572,7 +4906,7 @@ function ReadingApp() {
             setLoading(true);
             setLoadMsg("Writing a fresh story...");
             try {
-              const s = await generateStory(profiles[activeChild], week, setLoadMsg);
+              const s = await generateStoryFromLibrary(profiles[activeChild], week, setLoadMsg);
               await saveKey(key, s);
               setStory(s);
             } catch (e) {
@@ -2622,11 +4956,7 @@ function Home({ profiles, hasApiKey, syncMode, onOpen, onProgress, onSettings })
                 : <>Next new story arrives <strong>{prettyDate(nextMon)}</strong></>}
             </span>
           </div>
-          {!hasApiKey && (
-            <button onClick={onSettings} style={S.warnBanner}>
-              <Lock size={14}/> Add your Anthropic API key in Settings to enable story generation.
-            </button>
-          )}
+          
         </div>
 
         <div style={S.decoStack}>
@@ -2769,7 +5099,7 @@ function SettingsView({ apiKey, model, syncMode, onSaveKey, onSaveModel, onBack 
         <ArrowLeft size={16}/> Back
       </button>
       <h1 style={{ ...S.h1, fontSize: 32, margin: "18px 0 6px" }}>Settings</h1>
-      <p style={S.subtitle}>Connect your Anthropic API key so the app can write new stories each week.</p>
+      <p style={S.subtitle}>Stories are normally generated by the Netlify server. The API key below is only needed as a fallback if the server isn't reachable (e.g. running locally).</p>
 
       <div style={{ ...S.settingsCard, marginTop: 16 }}>
         <label style={S.settingsLabel}>Anthropic API Key</label>
