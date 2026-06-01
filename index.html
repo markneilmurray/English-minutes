@@ -2,12 +2,15 @@
 <html lang="en-GB">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <meta name="theme-color" content="#143232" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-  <meta name="apple-mobile-web-app-title" content="English" />
-  <title>English Practice</title>
+  <meta name="apple-mobile-web-app-title" content="English Minutes" />
+  <meta name="theme-color" content="#143232" />
+  <title>English Minutes</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,700&family=Quicksand:wght@400;500;600;700&family=Nunito:wght@400;600;700;800&family=Caveat:wght@500;700&display=swap" rel="stylesheet">
   <style>
     :root {
       font-family: "Quicksand", "Nunito", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
@@ -22,25 +25,22 @@
       -webkit-tap-highlight-color: transparent;
       -webkit-touch-callout: none;
     }
-    button { font-family: inherit; cursor: pointer; border: none; background: none; }
+    button { font-family: inherit; cursor: pointer; }
     input, select { font-family: inherit; }
     #_boot {
       position: fixed; inset: 0; display: flex; align-items: center; justify-content: center;
       color: #143232; font-size: 14px; opacity: 0.6;
     }
+    .spin { animation: _spin 1.2s linear infinite; }
+    @keyframes _spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
   </style>
 </head>
 <body>
-  <div id="root"><div id="_boot">Loading...</div></div>
+  <div id="root"><div id="_boot">Loading English Minutes...</div></div>
 
-  <!-- React 18 (UMD) -->
   <script crossorigin src="https://unpkg.com/react@18.3.1/umd/react.production.min.js"></script>
   <script crossorigin src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js"></script>
-
-  <!-- Babel for in-browser JSX -->
   <script src="https://unpkg.com/@babel/standalone@7.24.7/babel.min.js"></script>
-
-  <!-- Firebase (compat, easier from globals) -->
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
 
@@ -48,7 +48,7 @@
     // Family code is always defined so the app boots even if Firebase fails to load
     var FAMILY_CODE = "murray-7f3k9q2x-home";
 
-    // Firebase config and init - defensive so a CDN failure doesn't break the app
+    // Firebase config - shared with Daily Maths Minutes app, isolated paths per sub-app
     var FIREBASE_CONFIG = {
       apiKey: "AIzaSyCdY2PnB_J2xgKWK-cYHLdNLt-a1SmCz0I",
       authDomain: "maths-minutes.firebaseapp.com",
@@ -71,8 +71,30 @@
 
   <script type="text/babel" data-presets="react">
 
-/* ============================ React + Icons ============================ */
-const { useState, useEffect, useRef, useMemo } = React;
+const { useState, useEffect, useRef, useMemo, useCallback } = React;
+
+/* ============================ SHELL ICONS ============================ */
+const _ShellIconBase = ({ children, size = 24, strokeWidth = 2, style, ...rest }) =>
+  React.createElement("svg", {
+    xmlns: "http://www.w3.org/2000/svg",
+    width: size, height: size, viewBox: "0 0 24 24",
+    fill: "none", stroke: "currentColor", strokeWidth,
+    strokeLinecap: "round", strokeLinejoin: "round",
+    style: { display: "inline-block", verticalAlign: "middle", flexShrink: 0, ...style },
+    ...rest
+  }, children);
+
+const ShellBook = (p) => (<_ShellIconBase {...p}><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></_ShellIconBase>);
+const ShellPencil = (p) => (<_ShellIconBase {...p}><path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z"/><path d="m15 5 4 4"/></_ShellIconBase>);
+const ShellSparkles = (p) => (<_ShellIconBase {...p}><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/><path d="M5 3v4"/><path d="M19 17v4"/><path d="M3 5h4"/><path d="M17 19h4"/></_ShellIconBase>);
+const ShellArrowRight = (p) => (<_ShellIconBase {...p}><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></_ShellIconBase>);
+const ShellChevronRight = (p) => (<_ShellIconBase {...p}><path d="m9 18 6-6-6-6"/></_ShellIconBase>);
+const ShellHome = (p) => (<_ShellIconBase {...p}><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></_ShellIconBase>);
+const ShellStar = (p) => (<_ShellIconBase {...p}><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></_ShellIconBase>);
+
+
+const PhonicsAppCmp = (() => {
+
 
 const Icon = ({ children, size = 24, ...props }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>{children}</svg>
@@ -939,7 +961,7 @@ function generateDay(profile, dateISO) {
 }
 
 /* ============================ UI: ROOT ============================ */
-function App() {
+function PhonicsApp() {
   const [data, setData] = useState(null);
   const [view, setView] = useState("home"); // home | practice | results | collection | settings
   const [ready, setReady] = useState(false);
@@ -1816,9 +1838,2087 @@ const S = {
 };
 
 
-/* ============================ RENDER ============================ */
-const _root = ReactDOM.createRoot(document.getElementById("root"));
-_root.render(<App />);
+
+return PhonicsApp;
+})();
+
+
+const ReadingAppCmp = (() => {
+
+    // ============== INLINE ICONS (lucide.dev paths, ISC) ==============
+const _IconBase = ({ children, size = 24, strokeWidth = 2, style, ...rest }) =>
+  React.createElement("svg", {
+    xmlns: "http://www.w3.org/2000/svg",
+    width: size, height: size, viewBox: "0 0 24 24",
+    fill: "none", stroke: "currentColor", strokeWidth,
+    strokeLinecap: "round", strokeLinejoin: "round",
+    style: { display: "inline-block", verticalAlign: "middle", flexShrink: 0, ...style },
+    ...rest
+  }, children);
+
+const ArrowLeft = (p) => (<_IconBase {...p}><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></_IconBase>);
+const Award = (p) => (<_IconBase {...p}><circle cx="12" cy="8" r="6"/><path d="M15.477 12.89 17 22l-5-3-5 3 1.523-9.11"/></_IconBase>);
+const BookOpen = (p) => (<_IconBase {...p}><path d="M12 7v14"/><path d="M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/></_IconBase>);
+const Brain = (p) => (<_IconBase {...p}><path d="M12 5a3 3 0 1 0-5.997.125 4 4 0 0 0-2.526 5.77 4 4 0 0 0 .556 6.588A4 4 0 1 0 12 18Z"/><path d="M12 5a3 3 0 1 1 5.997.125 4 4 0 0 1 2.526 5.77 4 4 0 0 1-.556 6.588A4 4 0 1 1 12 18Z"/></_IconBase>);
+const Calendar = (p) => (<_IconBase {...p}><path d="M8 2v4"/><path d="M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/></_IconBase>);
+const Check = (p) => (<_IconBase {...p}><path d="M20 6 9 17l-5-5"/></_IconBase>);
+const ChevronLeft = (p) => (<_IconBase {...p}><path d="m15 18-6-6 6-6"/></_IconBase>);
+const ChevronRight = (p) => (<_IconBase {...p}><path d="m9 18 6-6-6-6"/></_IconBase>);
+const Cog = (p) => (<_IconBase {...p}><path d="M12 20a8 8 0 1 0-8-8"/><path d="M12 2v2"/><path d="M12 22v-2"/><path d="m17 20.66-1-1.73"/><path d="M11 10.27 7 3.34"/><path d="m20.66 17-1.73-1"/><path d="m3.34 7 1.73 1"/><path d="M14 12h8"/><path d="M2 12h2"/><path d="m20.66 7-1.73 1"/><path d="m3.34 17 1.73-1"/><path d="m17 3.34-1 1.73"/><path d="m11 13.73-4 6.93"/></_IconBase>);
+const Eye = (p) => (<_IconBase {...p}><path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0"/><circle cx="12" cy="12" r="3"/></_IconBase>);
+const HelpCircle = (p) => (<_IconBase {...p}><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></_IconBase>);
+const HomeBack = (p) => (<_IconBase {...p}><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></_IconBase>);
+const Loader2 = (p) => (<_IconBase {...p}><path d="M21 12a9 9 0 1 1-6.219-8.56"/></_IconBase>);
+const Lock = (p) => (<_IconBase {...p}><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></_IconBase>);
+const RefreshCw = (p) => (<_IconBase {...p}><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M3 21v-5h5"/></_IconBase>);
+const Search = (p) => (<_IconBase {...p}><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></_IconBase>);
+const Sparkles = (p) => (<_IconBase {...p}><path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z"/></_IconBase>);
+const Star = (p) => (<_IconBase {...p}><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></_IconBase>);
+const Trophy = (p) => (<_IconBase {...p}><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></_IconBase>);
+const Volume2 = (p) => (<_IconBase {...p}><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></_IconBase>);
+const VolumeX = (p) => (<_IconBase {...p}><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><line x1="22" x2="16" y1="9" y2="15"/><line x1="16" x2="22" y1="9" y2="15"/></_IconBase>);
+const X = (p) => (<_IconBase {...p}><path d="M18 6 6 18"/><path d="m6 6 12 12"/></_IconBase>);
+
+
+/* ============================ STORAGE ============================ */
+// Cross-device storage: Firebase Realtime Database (primary) with localStorage fallback.
+// FIREBASE_CONFIG and FAMILY_CODE are defined in the HTML scaffold.
+const HAS_FB = typeof firebase !== "undefined" && typeof FAMILY_CODE !== "undefined";
+const HAS_LS = typeof localStorage !== "undefined";
+const MEM = {};
+const PROFILES_KEY = "reading_app_profiles_v1";
+const API_KEY_KEY = "reading_app_anthropic_key";
+const MODEL_KEY = "reading_app_anthropic_model";
+const storyKey = (childId, week) => `reading_app_story_${childId}_${week}`;
+const progressKey = (childId, week) => `reading_app_progress_${childId}_${week}`;
+
+function fbRef(key) {
+  if (!HAS_FB) return null;
+  return firebase.database().ref(`families/${FAMILY_CODE}/reading/${key}`);
+}
+
+async function loadKey(key, fallback) {
+  // Try Firebase first
+  if (HAS_FB) {
+    try {
+      const snap = await fbRef(key).get();
+      if (snap.exists()) {
+        const v = snap.val();
+        // We always write as JSON strings; tolerate raw values too.
+        if (typeof v === "string") {
+          try { return JSON.parse(v); } catch { return v; }
+        }
+        return v;
+      }
+    } catch (e) { /* network or auth issue, fall through */ }
+  }
+  // Then localStorage
+  if (HAS_LS) {
+    try {
+      const raw = localStorage.getItem(key);
+      if (raw != null) return JSON.parse(raw);
+    } catch {}
+  }
+  // Then memory
+  return MEM[key] !== undefined ? MEM[key] : fallback;
+}
+
+async function saveKey(key, value) {
+  // Always write to localStorage first (instant, offline-safe)
+  if (HAS_LS) {
+    try { localStorage.setItem(key, JSON.stringify(value)); } catch {}
+  }
+  MEM[key] = value;
+  // Then fan out to Firebase (best effort)
+  if (HAS_FB) {
+    try { await fbRef(key).set(JSON.stringify(value)); } catch {}
+  }
+}
+
+/* ============================ DATE HELPERS ============================ */
+// ISO week: returns "2026-W22"
+function isoWeek(d = new Date()) {
+  const t = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+  const day = t.getUTCDay() || 7;
+  t.setUTCDate(t.getUTCDate() + 4 - day);
+  const yearStart = new Date(Date.UTC(t.getUTCFullYear(), 0, 1));
+  const weekNum = Math.ceil(((t - yearStart) / 86400000 + 1) / 7);
+  return `${t.getUTCFullYear()}-W${String(weekNum).padStart(2, "0")}`;
+}
+function mondayOf(d = new Date()) {
+  const x = new Date(d);
+  const day = x.getDay() || 7;
+  if (day !== 1) x.setHours(-24 * (day - 1));
+  x.setHours(0, 0, 0, 0);
+  return x;
+}
+function nextMonday(d = new Date()) {
+  const m = mondayOf(d);
+  m.setDate(m.getDate() + 7);
+  return m;
+}
+function prettyDate(d) {
+  return d.toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" });
+}
+
+/* ============================ PROFILES ============================ */
+const DEFAULT_PROFILES = {
+  activeId: "charlie",
+  charlie: {
+    id: "charlie", name: "Charlie", emoji: "🦊",
+    band: "ort5",           // Oxford Reading Tree Level 5
+    year: "year1_summer",   // adjusts with curriculum
+    collection: [],         // woodland creatures
+    streak: 0,
+    lastDay: null,
+    storiesRead: 0,
+  },
+  freddie: {
+    id: "freddie", name: "Freddie", emoji: "🐙",
+    band: "preschool",
+    year: "preschool",
+    collection: [],         // sea creatures
+    streak: 0,
+    lastDay: null,
+    storiesRead: 0,
+  },
+};
+
+// Reward critters per child
+const WOODLAND = ["🦊","🦉","🦔","🐿️","🦡","🐰","🦌","🐻","🦫","🐺","🦇","🐌","🐝","🐞","🦋","🐸","🦃","🐢"];
+const SEACREATURES = ["🐙","🐠","🐡","🦈","🐬","🐳","🐋","🦀","🦐","🦑","🐚","🐢","🪼","🐟","🦞","⭐","🪸","🐧"];
+
+function critterFor(child, idx) {
+  const pool = child.id === "charlie" ? WOODLAND : SEACREATURES;
+  return pool[idx % pool.length];
+}
+
+/* ============================ CURRICULUM (advances by date) ============================ */
+// UK academic year: Sept-Aug. Returns the appropriate band given today's date.
+function bandForChild(child) {
+  const now = new Date();
+  const month = now.getMonth(); // 0=Jan, 11=Dec
+  const year = now.getFullYear();
+  // If we're in Sept-Dec, the academic year started this calendar year; otherwise last year.
+  const academicYearStart = month >= 8 ? year : year - 1;
+
+  if (child.id === "charlie") {
+    // Charlie is Year 1 in academic year starting Sept 2025.
+    const yearsAhead = academicYearStart - 2025;
+    if (yearsAhead < 1) {
+      // Year 1 (2025/26). Summer term = April–July.
+      return "ort5";
+    }
+    if (yearsAhead === 1) {
+      // Year 2 (2026/27). Autumn: ORT 6, Spring/Summer: ORT 7.
+      return month >= 0 && month <= 3 ? "ort6" : month >= 8 ? "ort6" : "ort7";
+    }
+    if (yearsAhead === 2) {
+      // Year 3 (2027/28).
+      return month >= 3 && month <= 7 ? "ort9" : "ort8";
+    }
+    return "ort9";
+  }
+
+  // Freddie: pre-school 2025/26 → Reception Sept 2026 → Year 1 Sept 2027.
+  const yearsAhead = academicYearStart - 2025;
+  if (yearsAhead < 1) return "preschool";
+  if (yearsAhead === 1) return "reception";
+  if (yearsAhead === 2) return "ort5";
+  return "ort6";
+}
+
+const BANDS = {
+  preschool:  { name: "Pre-school",  colour: "#F4A261", label: "Pictures & first words" },
+  reception:  { name: "Reception",   colour: "#E9C46A", label: "Reception band" },
+  ort5:       { name: "ORT Level 5", colour: "#2A9D8F", label: "Green Band · Year 1" },
+  ort6:       { name: "ORT Level 6", colour: "#264653", label: "Orange Band · Year 1 / 2" },
+  ort7:       { name: "ORT Level 7", colour: "#8338EC", label: "Turquoise Band · Year 2" },
+  ort8:       { name: "ORT Level 8", colour: "#3A86FF", label: "Purple Band · Year 2" },
+  ort9:       { name: "ORT Level 9", colour: "#E63946", label: "Gold Band · Year 3" },
+};
+
+/* ============================ STORY GENERATION ============================ */
+// Defines the chunks for each child. Each chunk is one API call.
+// Page numbers and question types match the pedagogical schedule.
+const CHUNKS_FOR = {
+  charlie: [
+    { pages: [1,2,3,4,5],     questions: { 4: "prediction" } },
+    { pages: [6,7,8,9,10],    questions: { 7: "skimscan", 10: "retrieval" } },
+    { pages: [11,12,13,14,15],questions: { 13: "inference" } },
+    { pages: [16,17,18,19,20],questions: { 16: "prediction", 19: "retrieval" } },
+  ],
+  freddie: [
+    { pages: [1,2,3,4,5],     questions: { 4: "retrieval" } },
+    { pages: [6,7,8,9,10],    questions: { 7: "retrieval", 10: "retrieval" } },
+    { pages: [11,12,13,14],   questions: { 13: "retrieval" } },
+  ],
+};
+
+const QUESTION_GUIDE = {
+  retrieval: "ask about a literal fact the reader can find in the text",
+  prediction: "ask what might happen next, before the reader turns the page",
+  skimscan: "ask the reader to find a specific word or detail on the page",
+  inference: "ask why a character felt or did something, requiring reading between the lines",
+};
+
+// Line-based format is much more compact than JSON for repeated structures.
+// Each chunk returns:
+//   TITLE: ... (chunk 0 only)
+//   SUB: ...   (chunk 0 only)
+//   PAL: #hex,#hex,#hex   (chunk 0 only)
+//   P4: <page text>
+//   E4: emoji,emoji,emoji
+//   Q4: <one-line JSON object for the question>
+//   P5: ...
+//   E5: ...
+//   ... etc for each page in this chunk
+
+function buildChunkPrompt(child, weekIso, chunkIdx, context) {
+  const seedToken = `${child.id}-${weekIso}`;
+  const chunks = CHUNKS_FOR[child.id];
+  const chunk = chunks[chunkIdx];
+  const isFirst = chunkIdx === 0;
+  const isLast = chunkIdx === chunks.length - 1;
+  const totalPages = chunks.reduce((s, c) => s + c.pages.length, 0);
+
+  const band = bandForChild(child);
+  const bandHints = {
+    preschool: "Pre-school. ONE simple sentence per page using common short, decodable words (cat, dog, mum, dad, big, red, run, jump, see, look, go, in, on, up, down). Use repetition and rhythm where helpful.",
+    reception: "Reception. 1-2 short sentences per page. Phase 2 and 3 phonics (s, a, t, p, i, n, m, d, g, o, c, k, ck, e, u, r, h, b, f, ff, l, ll, ss, j, v, w, x, y, z, zz, qu, ch, sh, th, ng, ai, ee, igh, oa, oo, ar, or, ur, ow, oi, ear, air, ure, er). Tricky words: the, to, I, no, go, into, he, she, we, me, be, was, my, you, they, all, are.",
+    ort5: "Oxford Reading Tree Level 5 (Green Band). Year 1 Summer Term. 1-3 sentences per page, mix of dialogue and narration. Year 1 common exception words (said, your, there, where, school, were, friend, people, water, again). Phase 5 phonics: split digraphs and alternative spellings.",
+    ort6: "Oxford Reading Tree Level 6 (Orange Band). 1-3 sentences. Adverbs and conjunctions (because, but, when, then). Past and present mixed.",
+    ort7: "Oxford Reading Tree Level 7 (Turquoise Band). Year 2 Autumn. Multi-clause sentences, suffixes -er -est -ly, contractions.",
+    ort8: "Oxford Reading Tree Level 8 (Purple Band). Year 2 Spring. Paragraphs of 3-4 sentences, expanded noun phrases, varied sentence openers.",
+    ort9: "Oxford Reading Tree Level 9 (Gold Band). Year 3. Richer vocabulary, similes, dialogue.",
+  };
+
+  let header = isFirst
+    ? `You are writing a brand-new ${child.id === "freddie" ? "pre-school picture book" : "Oxford Reading Tree-style storybook"} for ${child.id === "freddie" ? "a 4-year-old British boy named Freddie" : "a 6-year-old British boy named Charlie"}. UK English spelling. No em dashes.
+
+Reading band: ${bandHints[band] || bandHints.ort5}
+
+This is part ${chunkIdx + 1} of ${chunks.length} (the whole book is ${totalPages} pages).`
+    : `You are continuing a ${child.id === "freddie" ? "pre-school picture book" : "Oxford Reading Tree-style storybook"}. UK English spelling. No em dashes.
+
+This is part ${chunkIdx + 1} of ${chunks.length} (the whole book is ${totalPages} pages).
+
+Story so far:
+Title: "${context.title}"
+Subtitle: "${context.subtitle}"
+Palette: ${(context.palette || []).join(", ")}
+Previous pages:
+${context.previousTexts.map((t, i) => `  ${i+1}. ${t}`).join("\n")}
+`;
+
+  const pageLines = chunk.pages.map(n => {
+    const qType = chunk.questions[n];
+    let line = `  P${n}: <one or more short sentences, see band guidance>\n  E${n}: <3-6 emoji that capture this page, comma-separated>`;
+    if (qType) {
+      line += `\n  Q${n}: <ONE LINE of compact JSON: {"type":"${qType}","prompt":"...","options":["..","..",".."],"answer":"matches one option","hint":"one sentence about the skill"}>`;
+    }
+    return line;
+  }).join("\n");
+
+  const headerLinesIfFirst = isFirst
+    ? `  TITLE: <book title, max ${child.id === "freddie" ? 6 : 7} words>
+  SUB: <one short subtitle sentence>
+  PAL: <3 hex colours like #2A9D8F,#E9C46A,#F4A261 that suit the story>
+`
+    : "";
+
+  const guidanceLines = Object.entries(chunk.questions)
+    .map(([page, type]) => `  Page ${page} question (${type}): ${QUESTION_GUIDE[type]}.`)
+    .join("\n");
+
+  const endingNote = isLast
+    ? `\nThis is the final part. Page ${chunk.pages[chunk.pages.length - 1]} should give the story a satisfying ending.`
+    : `\nDo NOT resolve the story yet. End this part on a hook.`;
+
+  return `${header}
+
+Output the chunk in this EXACT line-based format. No markdown, no commentary, just the lines below.
+
+${headerLinesIfFirst}${pageLines}
+
+Rules:
+- Output exactly the pages listed above: ${chunk.pages.join(", ")}.
+- Each P line is page text only. Each E line is emojis only. Each Q line is one-line JSON for the question.
+- ${isFirst ? "Page 1 is the title page · text can be a 1-sentence opener, no question." : "Continue the same characters, tone and palette."}
+${guidanceLines ? "- " + guidanceLines.trim().replace(/^  /, "") : ""}${endingNote}
+- Random seed: "${seedToken}".
+
+Output ONLY the lines above, nothing else.`;
+}
+
+function parseChunkResponse(text, chunk) {
+  const lines = text.split(/\r?\n/);
+  const out = { title: null, subtitle: null, palette: null, pages: [] };
+  const pageMap = {}; // pageNum -> { text, emojis, question }
+
+  for (let raw of lines) {
+    const line = raw.trim();
+    if (!line) continue;
+
+    let m;
+    if ((m = line.match(/^TITLE:\s*(.+)$/))) { out.title = m[1].replace(/^["']|["']$/g, ""); continue; }
+    if ((m = line.match(/^SUB(?:TITLE)?:\s*(.+)$/))) { out.subtitle = m[1].replace(/^["']|["']$/g, ""); continue; }
+    if ((m = line.match(/^PAL(?:ETTE)?:\s*(.+)$/))) {
+      out.palette = m[1].split(",").map(s => s.trim()).filter(s => /^#?[0-9a-fA-F]{3,8}$/.test(s)).map(s => s.startsWith("#") ? s : "#" + s);
+      continue;
+    }
+    if ((m = line.match(/^P(\d+):\s*(.+)$/))) {
+      const n = parseInt(m[1], 10);
+      pageMap[n] = pageMap[n] || {};
+      pageMap[n].text = m[2].replace(/^["']|["']$/g, "");
+      continue;
+    }
+    if ((m = line.match(/^E(\d+):\s*(.+)$/))) {
+      const n = parseInt(m[1], 10);
+      pageMap[n] = pageMap[n] || {};
+      pageMap[n].emojis = m[2].trim();
+      continue;
+    }
+    if ((m = line.match(/^Q(\d+):\s*(.+)$/))) {
+      const n = parseInt(m[1], 10);
+      pageMap[n] = pageMap[n] || {};
+      let jsonStr = m[2].trim();
+      // Strip any stray code fences or trailing chars
+      jsonStr = jsonStr.replace(/^```(?:json)?\s*/i, "").replace(/```\s*$/i, "").trim();
+      try { pageMap[n].question = JSON.parse(jsonStr); } catch (e) { /* drop malformed question */ }
+      continue;
+    }
+  }
+
+  // Assemble pages in the order the chunk expects
+  for (const n of chunk.pages) {
+    const p = pageMap[n] || {};
+    out.pages.push({
+      text: p.text || "",
+      emojis: p.emojis || "",
+      question: p.question || null,
+    });
+  }
+
+  return out;
+}
+
+// API config is set in Settings and stored in Firebase + localStorage.
+let ACTIVE_API_KEY = "";
+let ACTIVE_MODEL = "claude-sonnet-4-5";
+function setActiveApiKey(k) { ACTIVE_API_KEY = (k || "").trim(); }
+function setActiveModel(m) { ACTIVE_MODEL = (m || "claude-sonnet-4-5").trim(); }
+
+async function callChunkApi(prompt, chunk) {
+  if (!ACTIVE_API_KEY) {
+    throw new Error("No API key set. Open Settings and add your Anthropic API key.");
+  }
+  const res = await fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "x-api-key": ACTIVE_API_KEY,
+      "anthropic-version": "2023-06-01",
+      "anthropic-dangerous-direct-browser-access": "true",
+    },
+    body: JSON.stringify({
+      model: ACTIVE_MODEL,
+      max_tokens: 2048,
+      messages: [{ role: "user", content: prompt }],
+    }),
+  });
+  if (!res.ok) {
+    let detail = "";
+    try { detail = (await res.text()).slice(0, 200); } catch (e) {}
+    throw new Error(`API ${res.status}${detail ? `: ${detail}` : ""}`);
+  }
+  const data = await res.json();
+  const text = (data.content || []).map(b => b.type === "text" ? b.text : "").join("");
+  if (!text) throw new Error("Empty response");
+  const parsed = parseChunkResponse(text, chunk);
+  // Validate that we got text for every expected page
+  const missing = parsed.pages.filter(p => !p.text).length;
+  if (missing > Math.floor(chunk.pages.length / 3)) {
+    throw new Error(`Got ${chunk.pages.length - missing}/${chunk.pages.length} pages`);
+  }
+  return parsed;
+}
+
+async function generateStory(child, weekIso, onProgress) {
+  const chunks = CHUNKS_FOR[child.id];
+  if (!chunks) throw new Error("Unknown child");
+
+  let title = "", subtitle = "", palette = null;
+  const allPages = [];
+
+  for (let i = 0; i < chunks.length; i++) {
+    const chunk = chunks[i];
+    const context = i === 0 ? null : { title, subtitle, palette, previousTexts: allPages.map(p => p.text) };
+    const prompt = buildChunkPrompt(child, weekIso, i, context);
+
+    let lastErr;
+    let result = null;
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      try {
+        onProgress && onProgress(
+          attempt === 1
+            ? `Writing part ${i + 1} of ${chunks.length}...`
+            : `Retrying part ${i + 1} (${attempt}/3)...`
+        );
+        result = await callChunkApi(prompt, chunk);
+        break;
+      } catch (e) {
+        lastErr = e;
+        if (attempt < 3) await new Promise(r => setTimeout(r, 600 * attempt));
+      }
+    }
+    if (!result) throw lastErr || new Error(`Could not generate part ${i + 1}`);
+
+    if (i === 0) {
+      title = result.title || "A New Story";
+      subtitle = result.subtitle || "";
+      palette = (result.palette && result.palette.length >= 2)
+        ? result.palette
+        : ["#2A9D8F", "#E9C46A", "#F4A261"];
+    }
+    for (const p of result.pages) allPages.push(p);
+  }
+
+  return {
+    title,
+    subtitle,
+    palette,
+    pages: allPages,
+    generatedAt: new Date().toISOString(),
+    week: weekIso,
+    band: bandForChild(child),
+  };
+}
+
+/* ============================ ILLUSTRATION ============================ */
+// Render a scene from emojis + palette. Watercolour-style page art.
+function SceneIllustration({ page, pageNumber, isCover, bookPalette }) {
+  const palette = (page.palette && page.palette.length >= 2)
+    ? page.palette
+    : (bookPalette && bookPalette.length >= 2)
+      ? bookPalette
+      : ["#F4D58D", "#8DB1AB", "#E76F51"];
+  const emojis = (page.emojis || "🌳,🐰,☁️")
+    .split(",").map(s => s.trim()).filter(Boolean).slice(0, 6);
+
+  // Deterministic positions based on page number so they don't reshuffle
+  const seed = (pageNumber * 9301 + 49297) % 233280;
+  const rand = (n) => {
+    const x = Math.sin(seed * (n + 1)) * 10000;
+    return x - Math.floor(x);
+  };
+
+  const positions = emojis.map((e, i) => {
+    if (isCover) {
+      // Cluster for cover
+      const ang = (i / Math.max(1, emojis.length)) * Math.PI * 2;
+      return {
+        emoji: e,
+        x: 50 + Math.cos(ang) * 22,
+        y: 50 + Math.sin(ang) * 18,
+        size: i === 0 ? 90 : 60 + rand(i) * 20,
+        rot: (rand(i + 30) - 0.5) * 14,
+      };
+    }
+    // Spread across full width; alternate top/bottom tiers
+    const slots = emojis.length;
+    const xBase = 10 + (i / Math.max(1, slots - 1 || 1)) * 80;
+    const tier = i % 2 === 0 ? 38 : 62;
+    return {
+      emoji: e,
+      x: xBase + (rand(i) - 0.5) * 6,
+      y: tier + (rand(i + 7) - 0.5) * 12,
+      size: 48 + rand(i + 20) * 26,
+      rot: (rand(i + 30) - 0.5) * 14,
+    };
+  });
+
+  const gradId = `g-${pageNumber}`;
+  const blobId = `blob-${pageNumber}`;
+  const paperId = `paper-${pageNumber}`;
+
+  return (
+    <svg viewBox="0 0 400 320" xmlns="http://www.w3.org/2000/svg" style={{ width: "100%", height: "100%", display: "block" }}>
+      <defs>
+        <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor={palette[0]} stopOpacity="0.45" />
+          <stop offset="100%" stopColor={palette[1] || palette[0]} stopOpacity="0.25" />
+        </linearGradient>
+        <radialGradient id={blobId} cx="50%" cy="50%" r="60%">
+          <stop offset="0%" stopColor={palette[2] || palette[0]} stopOpacity="0.35" />
+          <stop offset="100%" stopColor={palette[2] || palette[0]} stopOpacity="0" />
+        </radialGradient>
+        <filter id={paperId}>
+          <feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" stitchTiles="stitch"/>
+          <feColorMatrix values="0 0 0 0 0.4 0 0 0 0 0.3 0 0 0 0 0.2 0 0 0 0.06 0"/>
+          <feComposite in2="SourceGraphic" operator="in"/>
+        </filter>
+      </defs>
+
+      {/* Paper background */}
+      <rect width="400" height="320" fill="#FBF6E9" />
+      <rect width="400" height="320" fill={`url(#${gradId})`} />
+
+      {/* Watercolour blobs */}
+      <circle cx="80" cy="80" r="90" fill={`url(#${blobId})`} />
+      <circle cx="320" cy="220" r="110" fill={`url(#${blobId})`} />
+      <ellipse cx="200" cy="280" rx="180" ry="35" fill={palette[1] || palette[0]} fillOpacity="0.18" />
+
+      {/* Horizon line / ground */}
+      <path
+        d="M 0 245 Q 100 235 200 248 T 400 245 L 400 320 L 0 320 Z"
+        fill={palette[1] || "#B8C4A4"}
+        fillOpacity="0.35"
+      />
+
+      {/* Scene elements (emojis) */}
+      {positions.map((p, i) => (
+        <text
+          key={i}
+          x={`${p.x}%`}
+          y={`${p.y}%`}
+          fontSize={p.size}
+          textAnchor="middle"
+          dominantBaseline="middle"
+          transform={`rotate(${p.rot} ${(p.x / 100) * 400} ${(p.y / 100) * 320})`}
+          style={{ filter: "drop-shadow(2px 3px 0 rgba(60,40,20,0.15))" }}
+        >
+          {p.emoji}
+        </text>
+      ))}
+
+      {/* Paper grain */}
+      <rect width="400" height="320" filter={`url(#${paperId})`} opacity="0.5" />
+    </svg>
+  );
+}
+
+/* ============================ TEXT-TO-SPEECH ============================ */
+function useSpeech() {
+  const [speaking, setSpeaking] = useState(false);
+  const speak = useCallback((text) => {
+    if (!window.speechSynthesis) return;
+    window.speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(text);
+    u.rate = 0.85;
+    u.pitch = 1.05;
+    u.lang = "en-GB";
+    // Try to pick a British voice
+    const voices = window.speechSynthesis.getVoices();
+    const british = voices.find(v => v.lang === "en-GB") || voices.find(v => v.lang?.startsWith("en"));
+    if (british) u.voice = british;
+    u.onstart = () => setSpeaking(true);
+    u.onend = () => setSpeaking(false);
+    u.onerror = () => setSpeaking(false);
+    window.speechSynthesis.speak(u);
+  }, []);
+  const stop = useCallback(() => {
+    if (window.speechSynthesis) window.speechSynthesis.cancel();
+    setSpeaking(false);
+  }, []);
+  return { speak, stop, speaking };
+}
+
+/* ============================ MAIN APP ============================ */
+function ReadingApp() {
+  const [profiles, setProfiles] = useState(null);
+  const [view, setView] = useState("home"); // home | reader | progress
+  const [activeChild, setActiveChild] = useState(null);
+  const [story, setStory] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [loadMsg, setLoadMsg] = useState("");
+  const [error, setError] = useState(null);
+  const [apiKey, setApiKey] = useState("");
+  const [model, setModel] = useState("claude-sonnet-4-5");
+  const [syncMode, setSyncMode] = useState(HAS_FB ? "synced" : "local");
+
+  useEffect(() => {
+    (async () => {
+      const p = await loadKey(PROFILES_KEY, DEFAULT_PROFILES);
+      setProfiles(p);
+      const k = await loadKey(API_KEY_KEY, "");
+      if (k) { setApiKey(k); setActiveApiKey(k); }
+      const m = await loadKey(MODEL_KEY, "claude-sonnet-4-5");
+      if (m) { setModel(m); setActiveModel(m); }
+    })();
+    // Warm up voices
+    if (typeof window !== "undefined" && window.speechSynthesis) {
+      window.speechSynthesis.getVoices();
+    }
+  }, []);
+
+  const saveApiKey = useCallback(async (k) => {
+    setApiKey(k);
+    setActiveApiKey(k);
+    await saveKey(API_KEY_KEY, k);
+  }, []);
+  const saveModel = useCallback(async (m) => {
+    setModel(m);
+    setActiveModel(m);
+    await saveKey(MODEL_KEY, m);
+  }, []);
+
+  const saveProfiles = useCallback(async (next) => {
+    setProfiles(next);
+    await saveKey(PROFILES_KEY, next);
+  }, []);
+
+  const openChild = async (id) => {
+    setActiveChild(id);
+    setView("reader");
+    setError(null);
+    const child = profiles[id];
+    const week = isoWeek();
+    const key = storyKey(id, week);
+    let cached = await loadKey(key, null);
+    if (!cached) {
+      setLoading(true);
+      setLoadMsg("Looking for this week's story...");
+      try {
+        const s = await generateStory(child, week, (msg) => setLoadMsg(msg));
+        await saveKey(key, s);
+        cached = s;
+      } catch (e) {
+        const detail = (e && e.message) ? ` (${e.message})` : "";
+        setError(`We couldn't write a new story right now. Try again in a moment.${detail}`);
+        setLoading(false);
+        return;
+      }
+      setLoading(false);
+    }
+    setStory(cached);
+  };
+
+  const awardCompletion = async (id, week) => {
+    const next = { ...profiles };
+    const p = { ...next[id] };
+    // Avoid double-awarding if the same week has already been completed
+    const alreadyAwarded = (p.collection || []).some(c => c.week === week);
+    if (alreadyAwarded) return;
+    p.storiesRead = (p.storiesRead || 0) + 1;
+    const today = new Date().toISOString().slice(0, 10);
+    if (p.lastDay !== today) {
+      p.streak = (p.streak || 0) + 1;
+      p.lastDay = today;
+    }
+    p.collection = [
+      ...(p.collection || []),
+      { id: week, emoji: critterFor(p, (p.collection || []).length), week },
+    ];
+    next[id] = p;
+    await saveProfiles(next);
+  };
+
+  const backHome = () => {
+    setView("home");
+    setStory(null);
+    setActiveChild(null);
+    if (window.speechSynthesis) window.speechSynthesis.cancel();
+  };
+
+  if (!profiles) {
+    return (
+      <div style={S.bootScreen}>
+        <Loader2 size={42} className="spin" style={{ color: "#E76F51" }}/>
+      </div>
+    );
+  }
+
+  return (
+    <div style={S.app}>
+      <GoogleFontsAndCss />
+
+      {view === "home" && (
+        <Home
+          profiles={profiles}
+          hasApiKey={!!apiKey}
+          syncMode={syncMode}
+          onOpen={openChild}
+          onProgress={(id) => { setActiveChild(id); setView("progress"); }}
+          onSettings={() => setView("settings")}
+        />
+      )}
+
+      {view === "settings" && (
+        <SettingsView
+          apiKey={apiKey}
+          model={model}
+          syncMode={syncMode}
+          onSaveKey={saveApiKey}
+          onSaveModel={saveModel}
+          onBack={backHome}
+        />
+      )}
+
+      {view === "reader" && (
+        <Reader
+          child={profiles[activeChild]}
+          story={story}
+          loading={loading}
+          loadMsg={loadMsg}
+          error={error}
+          onBack={backHome}
+          onProgressOpen={() => setView("progress")}
+          onComplete={() => awardCompletion(activeChild, story?.week)}
+          onRegenerate={async () => {
+            const week = isoWeek();
+            const key = storyKey(activeChild, week);
+            setStory(null);
+            setLoading(true);
+            setLoadMsg("Writing a fresh story...");
+            try {
+              const s = await generateStory(profiles[activeChild], week, setLoadMsg);
+              await saveKey(key, s);
+              setStory(s);
+            } catch (e) {
+              const detail = (e && e.message) ? ` (${e.message})` : "";
+              setError(`Couldn't generate. Try again.${detail}`);
+            }
+            setLoading(false);
+          }}
+        />
+      )}
+
+      {view === "progress" && (
+        <Progress
+          child={profiles[activeChild]}
+          onBack={backHome}
+        />
+      )}
+    </div>
+  );
+}
+
+/* ============================ HOME ============================ */
+function Home({ profiles, hasApiKey, syncMode, onOpen, onProgress, onSettings }) {
+  const today = new Date();
+  const nextMon = nextMonday(today);
+  const isMonday = today.getDay() === 1;
+
+  return (
+    <div style={S.homeWrap}>
+      <header style={S.header}>
+        <div style={S.titleStack}>
+          <div style={S.brandBadge}>
+            <BookOpen size={18} strokeWidth={2.5}/>
+            <span>STORY LIBRARY</span>
+          </div>
+          <h1 style={S.h1}>
+            This week's <em style={S.emText}>story</em> is ready
+          </h1>
+          <p style={S.subtitle}>
+            A brand-new adventure each Monday, written just for the boys.
+          </p>
+          <div style={S.weekChip}>
+            <Calendar size={14}/>
+            <span>
+              {isMonday
+                ? <>Today is Monday · a fresh story is in!</>
+                : <>Next new story arrives <strong>{prettyDate(nextMon)}</strong></>}
+            </span>
+          </div>
+          {!hasApiKey && (
+            <button onClick={onSettings} style={S.warnBanner}>
+              <Lock size={14}/> Add your Anthropic API key in Settings to enable story generation.
+            </button>
+          )}
+        </div>
+
+        <div style={S.decoStack}>
+          <button onClick={onSettings} style={S.settingsBtn} aria-label="Settings">
+            <Cog size={18}/>
+          </button>
+          <DecoBook colour="#E76F51"/>
+          <DecoBook colour="#2A9D8F"/>
+          <DecoBook colour="#F4A261"/>
+        </div>
+      </header>
+
+      <section style={S.cardsGrid}>
+        {["charlie", "freddie"].map(id => {
+          const c = profiles[id];
+          const band = BANDS[bandForChild(c)];
+          return (
+            <article key={id} style={{ ...S.childCard, borderColor: band.colour }}>
+              <div style={{ ...S.childTop, background: band.colour }}>
+                <span style={S.childEmoji}>{c.emoji}</span>
+                <div>
+                  <h2 style={S.childName}>{c.name}</h2>
+                  <p style={S.childBand}>{band.name} · {band.label}</p>
+                </div>
+              </div>
+              <div style={S.childBody}>
+                <div style={S.statsRow}>
+                  <Stat icon={<Trophy size={14}/>} label="Stories read" value={c.storiesRead || 0}/>
+                  <Stat icon={<Star size={14}/>} label="Critters" value={(c.collection || []).length}/>
+                  <Stat icon={<Sparkles size={14}/>} label="Streak" value={c.streak || 0}/>
+                </div>
+                <button style={{ ...S.openBtn, background: band.colour }} onClick={() => onOpen(id)}>
+                  <BookOpen size={18}/> Open this week's book
+                </button>
+                <button style={S.linkBtn} onClick={() => onProgress(id)}>
+                  See {c.name}'s collection →
+                </button>
+              </div>
+            </article>
+          );
+        })}
+      </section>
+
+      <footer style={S.footerHints}>
+        <Hint icon={<Eye size={16}/>} title="Retrieval" body="Find facts in the book."/>
+        <Hint icon={<HelpCircle size={16}/>} title="Prediction" body="Guess what comes next."/>
+        <Hint icon={<Search size={16}/>} title="Skim & Scan" body="Hunt for the right word."/>
+        <Hint icon={<Brain size={16}/>} title="Inference" body="Read between the lines."/>
+      </footer>
+    </div>
+  );
+}
+
+function Stat({ icon, label, value }) {
+  return (
+    <div style={S.stat}>
+      <div style={S.statTop}>{icon}<span>{label}</span></div>
+      <div style={S.statValue}>{value}</div>
+    </div>
+  );
+}
+
+function Hint({ icon, title, body }) {
+  return (
+    <div style={S.hint}>
+      <div style={S.hintIcon}>{icon}</div>
+      <div>
+        <strong style={{ display:"block" }}>{title}</strong>
+        <span style={{ fontSize: 12, color: "#665" }}>{body}</span>
+      </div>
+    </div>
+  );
+}
+
+function DecoBook({ colour }) {
+  return (
+    <svg className="deco-book" viewBox="0 0 80 110" width="80" height="110" style={{ filter: "drop-shadow(3px 5px 0 rgba(40,30,20,0.15))" }}>
+      <rect x="6" y="4" width="68" height="100" rx="4" fill={colour}/>
+      <rect x="10" y="8" width="60" height="92" rx="3" fill="#FBF6E9" opacity="0.95"/>
+      <line x1="20" y1="30" x2="60" y2="30" stroke={colour} strokeWidth="2" strokeLinecap="round"/>
+      <line x1="20" y1="42" x2="56" y2="42" stroke={colour} strokeWidth="2" strokeLinecap="round" opacity="0.6"/>
+      <line x1="20" y1="54" x2="58" y2="54" stroke={colour} strokeWidth="2" strokeLinecap="round" opacity="0.4"/>
+      <circle cx="40" cy="78" r="10" fill={colour} opacity="0.3"/>
+    </svg>
+  );
+}
+
+/* ============================ SETTINGS ============================ */
+function SettingsView({ apiKey, model, syncMode, onSaveKey, onSaveModel, onBack }) {
+  const [keyInput, setKeyInput] = useState(apiKey || "");
+  const [modelInput, setModelInput] = useState(model || "claude-sonnet-4-5");
+  const [revealed, setRevealed] = useState(false);
+  const [testStatus, setTestStatus] = useState(null); // null | "testing" | "ok" | {error: msg}
+
+  const masked = (k) => {
+    if (!k) return "";
+    if (k.length <= 12) return k;
+    return k.slice(0, 8) + "..." + k.slice(-4);
+  };
+
+  const handleSave = async () => {
+    await onSaveKey(keyInput.trim());
+    await onSaveModel(modelInput.trim() || "claude-sonnet-4-5");
+    setRevealed(false);
+  };
+
+  const handleTest = async () => {
+    if (!keyInput.trim()) { setTestStatus({ error: "Add a key first." }); return; }
+    setTestStatus("testing");
+    try {
+      const res = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-api-key": keyInput.trim(),
+          "anthropic-version": "2023-06-01",
+          "anthropic-dangerous-direct-browser-access": "true",
+        },
+        body: JSON.stringify({
+          model: modelInput.trim() || "claude-sonnet-4-5",
+          max_tokens: 16,
+          messages: [{ role: "user", content: "Say OK." }],
+        }),
+      });
+      if (!res.ok) {
+        let detail = "";
+        try { detail = (await res.text()).slice(0, 160); } catch (e) {}
+        setTestStatus({ error: `${res.status} ${detail}` });
+        return;
+      }
+      setTestStatus("ok");
+    } catch (e) {
+      setTestStatus({ error: e.message || "Network error" });
+    }
+  };
+
+  return (
+    <div style={S.settingsWrap}>
+      <button onClick={onBack} style={S.backBtn}>
+        <ArrowLeft size={16}/> Back
+      </button>
+      <h1 style={{ ...S.h1, fontSize: 32, margin: "18px 0 6px" }}>Settings</h1>
+      <p style={S.subtitle}>Connect your Anthropic API key so the app can write new stories each week.</p>
+
+      <div style={{ ...S.settingsCard, marginTop: 16 }}>
+        <label style={S.settingsLabel}>Anthropic API Key</label>
+        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          <input
+            type={revealed ? "text" : "password"}
+            value={keyInput}
+            onChange={(e) => setKeyInput(e.target.value)}
+            placeholder="sk-ant-..."
+            style={S.settingsInput}
+            spellCheck={false}
+            autoCapitalize="off"
+            autoCorrect="off"
+          />
+          <button onClick={() => setRevealed(v => !v)} style={{ ...S.settingsBtnPrimary, marginTop: 0, background: "#264653", padding: "12px 14px" }}>
+            <Eye size={16}/>
+          </button>
+        </div>
+        {!revealed && apiKey && (
+          <p style={{ ...S.settingsHelp, fontFamily: "monospace" }}>Saved: {masked(apiKey)}</p>
+        )}
+        <p style={S.settingsHelp}>
+          Get one at <strong>console.anthropic.com</strong> · API Keys. Your key stays in your browser and (if Firebase sync is on) in your private family database.
+        </p>
+
+        <label style={{ ...S.settingsLabel, marginTop: 18 }}>Model</label>
+        <input
+          type="text"
+          value={modelInput}
+          onChange={(e) => setModelInput(e.target.value)}
+          placeholder="claude-sonnet-4-5"
+          style={S.settingsInput}
+          spellCheck={false}
+        />
+        <p style={S.settingsHelp}>
+          Default is <code>claude-sonnet-4-5</code>. Other options include <code>claude-sonnet-4-6</code>, <code>claude-haiku-4-5</code>, <code>claude-opus-4-7</code>.
+        </p>
+
+        <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 16 }}>
+          <button onClick={handleSave} style={S.settingsBtnPrimary}>
+            <Check size={16}/> Save
+          </button>
+          <button onClick={handleTest} style={{ ...S.settingsBtnPrimary, background: "#264653" }}>
+            <Sparkles size={16}/> Test connection
+          </button>
+        </div>
+        {testStatus === "testing" && <p style={{ ...S.settingsHelp, color: "#264653" }}>Testing...</p>}
+        {testStatus === "ok" && <p style={{ ...S.settingsHelp, color: "#1c7a5d", fontWeight: 700 }}><Check size={14}/> Key works.</p>}
+        {testStatus && testStatus.error && <p style={{ ...S.settingsHelp, color: "#9b3a1f", fontWeight: 600 }}>Failed: {testStatus.error}</p>}
+      </div>
+
+      <div style={S.settingsCard}>
+        <label style={S.settingsLabel}>Sync</label>
+        {syncMode === "synced" ? (
+          <p style={S.settingsHelp}>
+            <strong>Connected to Firebase.</strong> Progress and stories sync across both phones for family <code>{typeof FAMILY_CODE !== "undefined" ? FAMILY_CODE : ""}</code>.
+          </p>
+        ) : (
+          <p style={S.settingsHelp}>
+            <strong>Local mode.</strong> Firebase config is missing - progress is stored on this device only.
+          </p>
+        )}
+      </div>
+
+      <div style={S.settingsCard}>
+        <label style={S.settingsLabel}>About</label>
+        <p style={S.settingsHelp}>
+          Charlie's Reading generates a fresh storybook each Monday tailored to each boy's reading level. Stories are cached for the week so revisiting the book opens the same story.
+        </p>
+      </div>
+    </div>
+  );
+}
+
+/* ============================ READER ============================ */
+function Reader({ child, story, loading, loadMsg, error, onBack, onProgressOpen, onRegenerate, onComplete }) {
+  const [pageIdx, setPageIdx] = useState(0);
+  const [showQuestion, setShowQuestion] = useState(false);
+  const [answeredQuestions, setAnsweredQuestions] = useState({});
+  const completedRef = useRef(false);
+  const { speak, stop, speaking } = useSpeech();
+  const band = BANDS[bandForChild(child)];
+
+  // Trigger completion award once when reader finishes
+  useEffect(() => {
+    if (!story) return;
+    const total = story.pages.length;
+    const lastIdx = total - 1;
+    if (pageIdx === lastIdx && answeredQuestions[lastIdx] && !completedRef.current) {
+      completedRef.current = true;
+      onComplete && onComplete();
+    }
+  }, [pageIdx, answeredQuestions, story, onComplete]);
+
+  // Load progress
+  useEffect(() => {
+    if (!story) return;
+    (async () => {
+      const prog = await loadKey(progressKey(child.id, story.week), { page: 0, answered: {} });
+      setPageIdx(prog.page || 0);
+      setAnsweredQuestions(prog.answered || {});
+    })();
+  }, [story, child.id]);
+
+  // Save progress
+  useEffect(() => {
+    if (!story) return;
+    saveKey(progressKey(child.id, story.week), { page: pageIdx, answered: answeredQuestions });
+  }, [pageIdx, answeredQuestions, story, child.id]);
+
+  if (loading) {
+    return (
+      <div style={S.loadingWrap}>
+        <button onClick={onBack} style={S.backTopBtn}><ArrowLeft size={18}/> Back</button>
+        <div style={S.loadingCore}>
+          <div style={S.loadingBook}>
+            <Loader2 size={56} className="spin" style={{ color: band.colour }}/>
+          </div>
+          <h2 style={S.loadingTitle}>{loadMsg || "Just a moment..."}</h2>
+          <p style={S.loadingSub}>Writing {child.name}'s new story. This usually takes 20–30 seconds.</p>
+          <LoadingTicker/>
+        </div>
+      </div>
+    );
+  }
+  if (error) {
+    return (
+      <div style={S.loadingWrap}>
+        <button onClick={onBack} style={S.backTopBtn}><ArrowLeft size={18}/> Back</button>
+        <div style={S.loadingCore}>
+          <h2 style={{ ...S.loadingTitle, color: "#B33" }}>Hmm, something went wrong</h2>
+          <p style={S.loadingSub}>{error}</p>
+          <button style={{ ...S.openBtn, background: band.colour, marginTop: 14 }} onClick={onRegenerate}>
+            <RefreshCw size={16}/> Try again
+          </button>
+        </div>
+      </div>
+    );
+  }
+  if (!story) return null;
+
+  const totalPages = story.pages.length;
+  const page = story.pages[pageIdx];
+  const isCover = pageIdx === 0;
+  const isLast = pageIdx === totalPages - 1;
+  const hasQuestion = !!page.question;
+  const questionAnswered = !!answeredQuestions[pageIdx];
+  const mustAnswer = hasQuestion && !questionAnswered;
+
+  const next = () => {
+    stop();
+    if (mustAnswer) { setShowQuestion(true); return; }
+    if (pageIdx < totalPages - 1) setPageIdx(pageIdx + 1);
+  };
+  const prev = () => {
+    stop();
+    if (pageIdx > 0) setPageIdx(pageIdx - 1);
+  };
+
+  const readPage = () => {
+    if (speaking) { stop(); return; }
+    const text = isCover ? `${story.title}. ${story.subtitle || ""}` : page.text;
+    speak(text);
+  };
+
+  return (
+    <div style={S.readerWrap}>
+      <div style={S.readerTop}>
+        <button onClick={onBack} style={S.backTopBtn}><ArrowLeft size={16}/> Library</button>
+        <div style={{ ...S.readerCrumb, color: band.colour }}>
+          <span style={{ ...S.bandDot, background: band.colour }}/>
+          {band.name} · {child.name}
+        </div>
+        <button onClick={readPage} style={S.iconBtn} title="Read this page">
+          {speaking ? <VolumeX size={18}/> : <Volume2 size={18}/>}
+        </button>
+      </div>
+
+      {/* Book spread */}
+      <div style={S.bookOuter}>
+        <div style={S.book}>
+          {/* Page (illustration on top on mobile, left on desktop) */}
+          <div className="book-spread">
+            <div className="illu" style={S.illustrationWrap}>
+              <SceneIllustration page={page} pageNumber={pageIdx} isCover={isCover} bookPalette={story.palette}/>
+            </div>
+            <div style={S.textWrap}>
+              {isCover ? (
+                <>
+                  <div style={S.coverTag}>{band.name} · {child.name}'s book</div>
+                  <h1 style={S.bookTitle}>{story.title}</h1>
+                  {story.subtitle && <p style={S.bookSubtitle}>{story.subtitle}</p>}
+                  <p style={S.coverText}>{page.text}</p>
+                  <p style={S.coverHint}>Tap <ChevronRight size={14} style={{ verticalAlign:"middle" }}/> to start reading.</p>
+                </>
+              ) : (
+                <>
+                  <p style={{ ...S.pageText, fontSize: child.id === "freddie" ? 26 : 22 }}>{page.text}</p>
+                  {hasQuestion && !questionAnswered && (
+                    <button
+                      style={{ ...S.questionPill, borderColor: band.colour, color: band.colour }}
+                      onClick={() => setShowQuestion(true)}
+                    >
+                      <QuestionIcon type={page.question.type}/>
+                      {labelForQuestionType(page.question.type)} · Answer to continue
+                    </button>
+                  )}
+                  {hasQuestion && questionAnswered && (
+                    <div style={S.answeredChip}>
+                      <Check size={14}/> {labelForQuestionType(page.question.type)} answered
+                    </div>
+                  )}
+                </>
+              )}
+              <div style={S.pageNum}>{isCover ? "Cover" : `Page ${pageIdx} of ${totalPages - 1}`}</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Controls */}
+      <div style={S.controls}>
+        <button onClick={prev} disabled={pageIdx === 0} style={{ ...S.navBtn, opacity: pageIdx === 0 ? 0.35 : 1 }}>
+          <ChevronLeft size={18}/> Back
+        </button>
+        <div style={S.progressBar}>
+          <div style={{ ...S.progressFill, width: `${((pageIdx + 1) / totalPages) * 100}%`, background: band.colour }}/>
+        </div>
+        <button onClick={next} disabled={isLast && (!mustAnswer || questionAnswered)} style={{ ...S.navBtn, background: band.colour, color: "#FBF6E9", opacity: isLast && questionAnswered ? 0.55 : 1 }}>
+          {isLast && (questionAnswered || !hasQuestion) ? <>Finish <Trophy size={18}/></> : <>Next <ChevronRight size={18}/></>}
+        </button>
+      </div>
+
+      {/* Question modal */}
+      {showQuestion && hasQuestion && (
+        <QuestionModal
+          question={page.question}
+          band={band}
+          onClose={() => setShowQuestion(false)}
+          onAnswer={(correct) => {
+            setAnsweredQuestions({ ...answeredQuestions, [pageIdx]: { correct, ts: Date.now() } });
+            setShowQuestion(false);
+            if (!isLast) setPageIdx(pageIdx + 1);
+          }}
+        />
+      )}
+
+      {/* Finish state */}
+      {isLast && questionAnswered && (
+        <FinishOverlay
+          child={child}
+          band={band}
+          story={story}
+          answered={answeredQuestions}
+          onProgressOpen={onProgressOpen}
+          onBack={onBack}
+        />
+      )}
+    </div>
+  );
+}
+
+function labelForQuestionType(t) {
+  switch (t) {
+    case "retrieval": return "Retrieval";
+    case "prediction": return "Prediction";
+    case "skimscan": return "Skim & Scan";
+    case "inference": return "Inference";
+    default: return "Question";
+  }
+}
+function QuestionIcon({ type, size = 14 }) {
+  switch (type) {
+    case "retrieval": return <Eye size={size}/>;
+    case "prediction": return <HelpCircle size={size}/>;
+    case "skimscan": return <Search size={size}/>;
+    case "inference": return <Brain size={size}/>;
+    default: return <HelpCircle size={size}/>;
+  }
+}
+
+function LoadingTicker() {
+  const msgs = [
+    "Picking out characters...",
+    "Choosing a setting...",
+    "Adding twists and turns...",
+    "Sprinkling in tricky words...",
+    "Drawing the pictures in our head...",
+    "Writing in proper UK spelling...",
+    "Almost ready...",
+  ];
+  const [i, setI] = useState(0);
+  useEffect(() => {
+    const t = setInterval(() => setI(x => (x + 1) % msgs.length), 3500);
+    return () => clearInterval(t);
+  }, []);
+  return (
+    <div style={{
+      marginTop: 18, padding: "10px 16px",
+      background: "#FFFBEC", border: "1px dashed #E0D3B5",
+      borderRadius: 999, fontSize: 13, color: "#5C4A3A",
+      fontStyle: "italic",
+    }}>
+      {msgs[i]}
+    </div>
+  );
+}
+
+/* ============================ QUESTION MODAL ============================ */
+function QuestionModal({ question, band, onAnswer, onClose }) {
+  const [selected, setSelected] = useState(null);
+  const [revealed, setRevealed] = useState(false);
+  const correct = selected === question.answer;
+
+  const choose = (opt) => {
+    if (revealed) return;
+    setSelected(opt);
+    setRevealed(true);
+  };
+
+  return (
+    <div style={S.modalBg} onClick={onClose}>
+      <div style={S.modal} onClick={(e) => e.stopPropagation()}>
+        <div style={{ ...S.modalTop, background: band.colour }}>
+          <div style={S.modalIcon}>
+            <QuestionIcon type={question.type} size={20}/>
+          </div>
+          <div>
+            <div style={S.modalKicker}>{labelForQuestionType(question.type)}</div>
+            <h3 style={S.modalQ}>{question.prompt}</h3>
+          </div>
+        </div>
+        <div style={S.modalBody}>
+          {question.hint && !revealed && (
+            <p style={S.hintText}><strong>Tip:</strong> {question.hint}</p>
+          )}
+          <div style={S.options}>
+            {question.options.map((opt, i) => {
+              const isSel = selected === opt;
+              const isAns = opt === question.answer;
+              let bg = "#FBF6E9";
+              let border = "#E0D3B5";
+              let ic = null;
+              if (revealed) {
+                if (isAns) { bg = "#D8F1DA"; border = "#5BA463"; ic = <Check size={16}/>; }
+                else if (isSel && !isAns) { bg = "#FCD9D6"; border = "#D75A56"; ic = <X size={16}/>; }
+              }
+              return (
+                <button key={i} onClick={() => choose(opt)} disabled={revealed}
+                  style={{ ...S.option, background: bg, borderColor: border }}>
+                  <span style={S.optionLetter}>{String.fromCharCode(65 + i)}</span>
+                  <span style={{ flex: 1 }}>{opt}</span>
+                  {ic}
+                </button>
+              );
+            })}
+          </div>
+          {revealed && (
+            <div style={S.feedback}>
+              {correct
+                ? <p style={{ ...S.fbText, color: "#2A7E37" }}>Brilliant! That's right.</p>
+                : <p style={{ ...S.fbText, color: "#B33" }}>Good try · the answer was <strong>{question.answer}</strong>.</p>}
+              <button style={{ ...S.openBtn, background: band.colour }} onClick={() => onAnswer(correct)}>
+                Carry on reading <ChevronRight size={16}/>
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ============================ FINISH OVERLAY ============================ */
+function FinishOverlay({ child, band, story, answered, onProgressOpen, onBack }) {
+  const totalQ = story.pages.filter(p => p.question).length;
+  const correct = Object.values(answered).filter(a => a.correct).length;
+  const newCritter = (child.collection && child.collection[child.collection.length - 1])
+    ? child.collection[child.collection.length - 1].emoji
+    : "⭐";
+
+  return (
+    <div style={S.modalBg}>
+      <div style={{ ...S.modal, maxWidth: 460 }}>
+        <div style={{ ...S.modalTop, background: band.colour, padding: "24px 24px" }}>
+          <div style={{ display:"flex", alignItems:"center", justifyContent:"center", flex:1, flexDirection:"column" }}>
+            <div style={S.finishCritter}>{newCritter}</div>
+            <h3 style={{ ...S.modalQ, textAlign:"center", marginTop: 12 }}>You did it, {child.name}!</h3>
+          </div>
+        </div>
+        <div style={S.modalBody}>
+          <p style={S.finishSummary}>
+            You finished <strong>{story.title}</strong>.
+          </p>
+          <div style={S.finishStats}>
+            <div style={S.finishStat}>
+              <div style={S.finishStatNum}>{correct}/{totalQ}</div>
+              <div style={S.finishStatLabel}>Questions right</div>
+            </div>
+            <div style={S.finishStat}>
+              <div style={S.finishStatNum}>{story.pages.length}</div>
+              <div style={S.finishStatLabel}>Pages read</div>
+            </div>
+            <div style={S.finishStat}>
+              <div style={S.finishStatNum}>+1</div>
+              <div style={S.finishStatLabel}>{child.id === "charlie" ? "Critter" : "Sea friend"}</div>
+            </div>
+          </div>
+          <p style={S.finishNext}>
+            Come back on <strong>Monday</strong> for a brand-new story.
+          </p>
+          <div style={{ display: "flex", gap: 8 }}>
+            <button style={{ ...S.openBtn, background: band.colour, flex: 1 }} onClick={onProgressOpen}>
+              <Award size={16}/> See collection
+            </button>
+            <button style={{ ...S.linkBtn, flex: 1, justifyContent: "center" }} onClick={onBack}>
+              <HomeBack size={16}/> Library
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ============================ PROGRESS / COLLECTION ============================ */
+function Progress({ child, onBack }) {
+  const band = BANDS[bandForChild(child)];
+  const coll = child.collection || [];
+
+  // Pool to show locked critters in grey
+  const pool = (child.id === "charlie" ? WOODLAND : SEACREATURES);
+
+  return (
+    <div style={S.progressWrap}>
+      <div style={S.readerTop}>
+        <button onClick={onBack} style={S.backTopBtn}><ArrowLeft size={16}/> Library</button>
+        <div style={{ ...S.readerCrumb, color: band.colour }}>
+          <span style={{ ...S.bandDot, background: band.colour }}/>
+          {child.name}'s progress
+        </div>
+        <div style={{ width: 80 }}/>
+      </div>
+
+      <header style={S.progressHero}>
+        <div style={{ fontSize: 80 }}>{child.emoji}</div>
+        <div>
+          <h1 style={{ ...S.h1, fontSize: 36, margin: 0 }}>{child.name}</h1>
+          <p style={S.subtitle}>{band.name} · {band.label}</p>
+        </div>
+      </header>
+
+      <section style={S.bigStats}>
+        <BigStat colour="#E76F51" label="Stories read" value={child.storiesRead || 0}/>
+        <BigStat colour={band.colour} label="Critters collected" value={coll.length}/>
+        <BigStat colour="#F4A261" label="Day streak" value={child.streak || 0}/>
+      </section>
+
+      <section style={S.collectionWrap}>
+        <h2 style={S.h2}>{child.id === "charlie" ? "🌳 Woodland critters" : "🌊 Sea friends"}</h2>
+        <p style={{ ...S.subtitle, marginTop: 0 }}>One new friend joins {child.name} for every story finished.</p>
+        <div style={S.critterGrid}>
+          {pool.map((e, i) => {
+            const unlocked = i < coll.length;
+            return (
+              <div key={i} style={{ ...S.critterCell, opacity: unlocked ? 1 : 0.25 }}>
+                <span style={{ fontSize: 36 }}>{unlocked ? e : "?"}</span>
+                {!unlocked && <Lock size={12} style={{ position:"absolute", top: 6, right: 6, color: "#998" }}/>}
+              </div>
+            );
+          })}
+        </div>
+      </section>
+
+      <section style={{ ...S.collectionWrap, marginBottom: 40 }}>
+        <h2 style={S.h2}>Reading skills</h2>
+        <div style={S.skillsGrid}>
+          <SkillCard icon={<Eye size={20}/>} colour="#2A9D8F" name="Retrieval"
+            desc="Looking back at the book to find a fact."/>
+          <SkillCard icon={<HelpCircle size={20}/>} colour="#E76F51" name="Prediction"
+            desc="Using clues to guess what happens next."/>
+          <SkillCard icon={<Search size={20}/>} colour="#F4A261" name="Skim & Scan"
+            desc="Finding a word or detail quickly."/>
+          <SkillCard icon={<Brain size={20}/>} colour="#8338EC" name="Inference"
+            desc="Working out things the book doesn't say directly."/>
+        </div>
+      </section>
+    </div>
+  );
+}
+
+function BigStat({ colour, label, value }) {
+  return (
+    <div style={{ ...S.bigStat, borderColor: colour }}>
+      <div style={{ ...S.bigStatValue, color: colour }}>{value}</div>
+      <div style={S.bigStatLabel}>{label}</div>
+    </div>
+  );
+}
+
+function SkillCard({ icon, colour, name, desc }) {
+  return (
+    <div style={S.skillCard}>
+      <div style={{ ...S.skillIcon, background: colour }}>{icon}</div>
+      <div>
+        <h3 style={S.skillName}>{name}</h3>
+        <p style={S.skillDesc}>{desc}</p>
+      </div>
+    </div>
+  );
+}
+
+/* ============================ GLOBAL CSS ============================ */
+function GoogleFontsAndCss() {
+  return (
+    <>
+      <link rel="preconnect" href="https://fonts.googleapis.com"/>
+      <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous"/>
+      <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,700;9..144,900&family=Nunito:wght@400;600;800&family=Caveat:wght@400;700&display=swap" rel="stylesheet"/>
+      <style>{`
+        @keyframes spin { from { transform: rotate(0); } to { transform: rotate(360deg); } }
+        .spin { animation: spin 1.2s linear infinite; }
+        @keyframes pop { 0% { transform: scale(0.6); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+        .pop { animation: pop 0.4s ease-out both; }
+        @keyframes fadeUp { 0% { transform: translateY(8px); opacity: 0; } 100% { transform: translateY(0); opacity: 1; } }
+        button { font-family: inherit; }
+        body { margin: 0; }
+        .deco-book + .deco-book { margin-left: -22px; }
+        .book-spread { display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: auto auto; gap: 0; }
+        @media (min-width: 720px) {
+          .book-spread { grid-template-columns: 1fr 1fr; grid-template-rows: auto; min-height: 430px; }
+          .book-spread > .illu { border-right: 1px solid #E8DEC4; border-bottom: none !important; }
+        }
+        @media (min-width: 720px) {
+          .home-header { flex-wrap: nowrap !important; }
+        }
+      `}</style>
+    </>
+  );
+}
+
+/* ============================ STYLES ============================ */
+const S = {
+  app: {
+    minHeight: "100vh",
+    background: "linear-gradient(180deg, #FBF6E9 0%, #F5EDD8 100%)",
+    fontFamily: "'Nunito', -apple-system, system-ui, sans-serif",
+    color: "#2C2316",
+    backgroundImage: `
+      radial-gradient(circle at 12% 18%, rgba(231, 111, 81, 0.08) 0px, transparent 240px),
+      radial-gradient(circle at 88% 80%, rgba(42, 157, 143, 0.08) 0px, transparent 260px),
+      linear-gradient(180deg, #FBF6E9 0%, #F5EDD8 100%)
+    `,
+  },
+  settingsBtn: {
+    position: "absolute", top: 0, right: 0,
+    width: 38, height: 38, borderRadius: 12,
+    background: "rgba(255,255,255,0.75)", border: "1px solid rgba(0,0,0,0.08)",
+    display: "grid", placeItems: "center", cursor: "pointer", color: "#2C2316",
+    boxShadow: "0 1px 3px rgba(0,0,0,0.06)",
+  },
+  warnBanner: {
+    display: "inline-flex", alignItems: "center", gap: 8,
+    marginTop: 14, padding: "10px 14px",
+    background: "rgba(231, 111, 81, 0.12)", color: "#9b3a1f",
+    border: "1px solid rgba(231, 111, 81, 0.3)", borderRadius: 12,
+    fontSize: 13, fontWeight: 600, cursor: "pointer", textAlign: "left",
+  },
+  settingsWrap: {
+    maxWidth: 720, margin: "0 auto", padding: "28px 22px 80px",
+  },
+  settingsCard: {
+    background: "#FFFCF3", border: "1px solid rgba(0,0,0,0.06)",
+    borderRadius: 18, padding: 22, marginBottom: 16,
+    boxShadow: "0 4px 18px rgba(0,0,0,0.04)",
+  },
+  settingsLabel: {
+    display: "block", fontSize: 13, fontWeight: 700, color: "#5a4a32",
+    textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 8,
+  },
+  settingsInput: {
+    width: "100%", padding: "12px 14px", fontSize: 15,
+    background: "#FBF6E9", border: "1px solid rgba(0,0,0,0.12)",
+    borderRadius: 10, fontFamily: "monospace", color: "#2C2316",
+    boxSizing: "border-box",
+  },
+  settingsHelp: {
+    fontSize: 13, color: "#7a6952", margin: "10px 0 0", lineHeight: 1.5,
+  },
+  settingsBtnPrimary: {
+    marginTop: 14, padding: "12px 22px", borderRadius: 12,
+    background: "#2A9D8F", color: "#FFFCF3", border: "none",
+    fontSize: 14, fontWeight: 700, cursor: "pointer",
+  },
+  bootScreen: {
+    minHeight: "100vh", display: "grid", placeItems: "center",
+    background: "#FBF6E9",
+  },
+
+  /* HOME */
+  homeWrap: { maxWidth: 1000, margin: "0 auto", padding: "32px 22px 60px" },
+  header: { display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginBottom: 28, flexWrap: "wrap", gap: 20 },
+  titleStack: { maxWidth: 580 },
+  brandBadge: {
+    display: "inline-flex", alignItems: "center", gap: 8,
+    background: "#2C2316", color: "#FBF6E9",
+    padding: "6px 12px", borderRadius: 999,
+    fontSize: 11, letterSpacing: 1.5, fontWeight: 800,
+  },
+  h1: {
+    fontFamily: "'Fraunces', Georgia, serif",
+    fontSize: 48, lineHeight: 1.05, margin: "14px 0 8px",
+    fontWeight: 900, letterSpacing: -1,
+  },
+  emText: {
+    fontFamily: "'Caveat', cursive",
+    fontStyle: "normal", color: "#E76F51",
+    fontWeight: 700, fontSize: "1.1em",
+  },
+  subtitle: { fontSize: 17, color: "#5C4A3A", margin: "4px 0 14px" },
+  weekChip: {
+    display: "inline-flex", alignItems: "center", gap: 8,
+    background: "#FFFBEC", border: "2px dashed #E0D3B5",
+    padding: "8px 14px", borderRadius: 12,
+    fontSize: 14, color: "#5C4A3A",
+  },
+  decoStack: { display: "flex", marginRight: 10, position: "relative", paddingTop: 44 },
+
+  cardsGrid: {
+    display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(290px, 1fr))",
+    gap: 18, marginBottom: 36,
+  },
+  childCard: {
+    background: "#FFFBEC", borderRadius: 20,
+    border: "3px solid", overflow: "hidden",
+    boxShadow: "0 8px 0 rgba(60, 40, 20, 0.08)",
+  },
+  childTop: {
+    display: "flex", alignItems: "center", gap: 14,
+    padding: "18px 20px", color: "#FBF6E9",
+  },
+  childEmoji: { fontSize: 50, lineHeight: 1, filter: "drop-shadow(2px 3px 0 rgba(0,0,0,0.2))" },
+  childName: { margin: 0, fontFamily: "'Fraunces', serif", fontSize: 26, fontWeight: 900 },
+  childBand: { margin: "2px 0 0", fontSize: 13, opacity: 0.9 },
+  childBody: { padding: 18 },
+  statsRow: { display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8, marginBottom: 14 },
+  stat: {
+    background: "#FBF6E9", borderRadius: 10,
+    padding: "10px 8px", textAlign: "center",
+    border: "1px solid #E8DEC4",
+  },
+  statTop: { display: "flex", alignItems: "center", justifyContent: "center", gap: 4, fontSize: 11, color: "#7A6855", marginBottom: 4 },
+  statValue: { fontFamily: "'Fraunces', serif", fontSize: 22, fontWeight: 900, color: "#2C2316" },
+  openBtn: {
+    width: "100%", padding: "14px 18px", border: "none",
+    borderRadius: 14, color: "#FBF6E9", fontWeight: 800,
+    fontSize: 16, cursor: "pointer",
+    display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+    boxShadow: "0 4px 0 rgba(0,0,0,0.18)",
+  },
+  linkBtn: {
+    background: "transparent", border: "none", color: "#5C4A3A",
+    fontWeight: 700, fontSize: 14, padding: "10px 0 0", cursor: "pointer",
+    width: "100%", textAlign: "center", display:"flex", alignItems:"center", justifyContent:"center", gap: 6,
+  },
+
+  footerHints: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 10 },
+  hint: {
+    background: "#FFFBEC", border: "1.5px solid #E8DEC4",
+    borderRadius: 12, padding: "12px 14px",
+    display: "flex", alignItems: "center", gap: 10, fontSize: 14,
+  },
+  hintIcon: {
+    background: "#FBF6E9", width: 32, height: 32, borderRadius: 8,
+    display: "grid", placeItems: "center", color: "#2A9D8F",
+    border: "1px solid #E0D3B5", flexShrink: 0,
+  },
+
+  /* READER */
+  readerWrap: { maxWidth: 1000, margin: "0 auto", padding: "16px 16px 40px" },
+  readerTop: {
+    display: "flex", alignItems: "center", justifyContent: "space-between",
+    padding: "8px 4px", marginBottom: 14,
+  },
+  backTopBtn: {
+    background: "#FFFBEC", border: "2px solid #E0D3B5", borderRadius: 10,
+    padding: "8px 14px", cursor: "pointer", fontWeight: 800,
+    color: "#2C2316", fontSize: 14, display: "flex", alignItems: "center", gap: 6,
+  },
+  readerCrumb: {
+    display: "flex", alignItems: "center", gap: 8, fontWeight: 800, fontSize: 14,
+  },
+  bandDot: { width: 10, height: 10, borderRadius: 5 },
+  iconBtn: {
+    background: "#FFFBEC", border: "2px solid #E0D3B5", borderRadius: 10,
+    width: 40, height: 40, cursor: "pointer", display: "grid", placeItems: "center",
+    color: "#2C2316",
+  },
+
+  bookOuter: {
+    background: "#FFFBEC", borderRadius: 24,
+    border: "2px solid #E0D3B5",
+    boxShadow: "0 12px 0 rgba(60, 40, 20, 0.1), inset 0 0 30px rgba(60, 40, 20, 0.04)",
+    padding: 14,
+    minHeight: 460,
+  },
+  book: {
+    background: "#FBF6E9", borderRadius: 16,
+    overflow: "hidden",
+    border: "1px solid #E8DEC4",
+    minHeight: 430,
+  },
+  bookPage: {
+    display: "grid",
+    gridTemplateColumns: "minmax(0, 1fr)",
+    gridTemplateRows: "auto auto",
+    gap: 0,
+  },
+  illustrationWrap: {
+    background: "#FBF6E9",
+    borderBottom: "1px solid #E8DEC4",
+    minHeight: 220,
+    position: "relative",
+  },
+  textWrap: { padding: "26px 28px 22px", display: "flex", flexDirection: "column", gap: 12, minHeight: 220 },
+  coverTag: {
+    display: "inline-block", alignSelf: "flex-start",
+    background: "#2C2316", color: "#FBF6E9",
+    fontSize: 10, letterSpacing: 1.5, fontWeight: 800,
+    padding: "4px 10px", borderRadius: 999,
+    textTransform: "uppercase",
+  },
+  bookTitle: {
+    fontFamily: "'Fraunces', serif", fontSize: 34, lineHeight: 1.05,
+    margin: 0, fontWeight: 900, color: "#2C2316",
+  },
+  bookSubtitle: { fontFamily: "'Caveat', cursive", fontSize: 24, color: "#E76F51", margin: 0 },
+  coverText: { fontSize: 16, color: "#5C4A3A", lineHeight: 1.55, marginTop: 8 },
+  coverHint: { fontSize: 13, color: "#7A6855", marginTop: "auto", fontStyle: "italic" },
+  pageText: {
+    fontFamily: "'Nunito', sans-serif",
+    fontSize: 22, lineHeight: 1.6, color: "#2C2316",
+    margin: 0, fontWeight: 600,
+  },
+  questionPill: {
+    alignSelf: "flex-start",
+    background: "#FFFBEC", border: "2px solid",
+    borderRadius: 999, padding: "8px 16px",
+    fontWeight: 800, fontSize: 14, cursor: "pointer",
+    display: "flex", alignItems: "center", gap: 8,
+  },
+  answeredChip: {
+    alignSelf: "flex-start",
+    background: "#D8F1DA", color: "#2A7E37",
+    padding: "6px 12px", borderRadius: 999,
+    fontWeight: 800, fontSize: 13,
+    display: "flex", alignItems: "center", gap: 6,
+  },
+  pageNum: { marginTop: "auto", fontSize: 12, color: "#998", letterSpacing: 1 },
+
+  controls: {
+    display: "flex", alignItems: "center", gap: 14,
+    marginTop: 18, padding: "0 6px",
+  },
+  navBtn: {
+    background: "#FFFBEC", border: "2px solid #E0D3B5",
+    color: "#2C2316", padding: "12px 18px", borderRadius: 14,
+    fontWeight: 800, fontSize: 15, cursor: "pointer",
+    display: "flex", alignItems: "center", gap: 6,
+    boxShadow: "0 3px 0 rgba(60, 40, 20, 0.1)",
+  },
+  progressBar: {
+    flex: 1, height: 10, background: "#FFFBEC",
+    borderRadius: 999, overflow: "hidden",
+    border: "1.5px solid #E8DEC4",
+  },
+  progressFill: { height: "100%", borderRadius: 999, transition: "width 0.3s ease" },
+
+  /* MODAL */
+  modalBg: {
+    position: "fixed", inset: 0,
+    background: "rgba(40, 30, 20, 0.55)",
+    display: "grid", placeItems: "center",
+    padding: 16, zIndex: 50,
+    animation: "fadeUp 0.18s ease-out",
+  },
+  modal: {
+    background: "#FFFBEC", borderRadius: 22,
+    maxWidth: 520, width: "100%",
+    overflow: "hidden",
+    boxShadow: "0 20px 60px rgba(40, 30, 20, 0.35)",
+    border: "2px solid #E0D3B5",
+  },
+  modalTop: {
+    color: "#FBF6E9", padding: "18px 22px",
+    display: "flex", alignItems: "center", gap: 14,
+  },
+  modalIcon: {
+    width: 44, height: 44, borderRadius: 12,
+    background: "rgba(255,255,255,0.25)",
+    display: "grid", placeItems: "center",
+    flexShrink: 0,
+  },
+  modalKicker: { fontSize: 11, letterSpacing: 1.5, fontWeight: 800, opacity: 0.85, textTransform: "uppercase" },
+  modalQ: { fontFamily: "'Fraunces', serif", fontSize: 22, margin: "2px 0 0", fontWeight: 900, lineHeight: 1.25 },
+  modalBody: { padding: 22 },
+  hintText: {
+    background: "#FFF7DC", border: "1px dashed #E0C97A",
+    padding: "10px 14px", borderRadius: 12,
+    fontSize: 14, color: "#5C4A3A", marginTop: 0,
+  },
+  options: { display: "flex", flexDirection: "column", gap: 10, marginTop: 12 },
+  option: {
+    display: "flex", alignItems: "center", gap: 12,
+    background: "#FBF6E9", border: "2px solid #E0D3B5",
+    borderRadius: 12, padding: "14px 16px",
+    fontSize: 16, fontWeight: 600, textAlign: "left",
+    cursor: "pointer", color: "#2C2316",
+  },
+  optionLetter: {
+    width: 28, height: 28, borderRadius: 8,
+    background: "#2C2316", color: "#FBF6E9",
+    display: "grid", placeItems: "center",
+    fontWeight: 900, fontSize: 13,
+    flexShrink: 0,
+  },
+  feedback: { marginTop: 14 },
+  fbText: { fontSize: 16, fontWeight: 700, margin: "8px 0 14px" },
+
+  /* FINISH */
+  finishCritter: { fontSize: 78, filter: "drop-shadow(3px 4px 0 rgba(0,0,0,0.2))" },
+  finishSummary: { fontSize: 17, margin: "0 0 14px", color: "#2C2316" },
+  finishStats: {
+    display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8,
+    margin: "14px 0",
+  },
+  finishStat: {
+    background: "#FBF6E9", borderRadius: 12,
+    padding: "12px 8px", textAlign: "center",
+    border: "1.5px solid #E8DEC4",
+  },
+  finishStatNum: { fontFamily: "'Fraunces', serif", fontSize: 24, fontWeight: 900 },
+  finishStatLabel: { fontSize: 11, color: "#7A6855", marginTop: 2 },
+  finishNext: {
+    background: "#FFF7DC", border: "1px dashed #E0C97A",
+    padding: "10px 14px", borderRadius: 12,
+    fontSize: 14, color: "#5C4A3A", margin: "0 0 14px", textAlign: "center",
+  },
+
+  /* LOADING */
+  loadingWrap: { maxWidth: 1000, margin: "0 auto", padding: "16px 16px" },
+  loadingCore: {
+    minHeight: 380, display: "grid", placeItems: "center", textAlign: "center",
+    padding: 40,
+  },
+  loadingBook: {
+    width: 110, height: 130, borderRadius: 14,
+    background: "#FFFBEC", border: "3px solid #E0D3B5",
+    display: "grid", placeItems: "center",
+    marginBottom: 22,
+    boxShadow: "0 10px 0 rgba(60, 40, 20, 0.1)",
+  },
+  loadingTitle: { fontFamily: "'Fraunces', serif", fontSize: 26, margin: 0, fontWeight: 900 },
+  loadingSub: { color: "#5C4A3A", fontSize: 15, margin: "8px 0 0" },
+
+  /* PROGRESS */
+  progressWrap: { maxWidth: 1000, margin: "0 auto", padding: "16px 16px 60px" },
+  progressHero: {
+    display: "flex", alignItems: "center", gap: 18,
+    background: "#FFFBEC", border: "2px solid #E0D3B5",
+    borderRadius: 20, padding: "22px 24px", marginBottom: 18,
+  },
+  bigStats: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 12, marginBottom: 28 },
+  bigStat: {
+    background: "#FFFBEC", border: "3px solid",
+    borderRadius: 16, padding: "18px 20px", textAlign: "center",
+    boxShadow: "0 6px 0 rgba(60, 40, 20, 0.08)",
+  },
+  bigStatValue: { fontFamily: "'Fraunces', serif", fontSize: 44, fontWeight: 900, lineHeight: 1 },
+  bigStatLabel: { fontSize: 14, color: "#5C4A3A", marginTop: 6, fontWeight: 700 },
+
+  collectionWrap: { marginBottom: 30 },
+  h2: {
+    fontFamily: "'Fraunces', serif", fontSize: 26,
+    margin: "20px 0 4px", fontWeight: 900,
+  },
+  critterGrid: { display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(60px, 1fr))", gap: 8, marginTop: 12 },
+  critterCell: {
+    background: "#FFFBEC", border: "2px solid #E0D3B5",
+    borderRadius: 12, aspectRatio: "1/1",
+    display: "grid", placeItems: "center",
+    position: "relative",
+  },
+  skillsGrid: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 12, marginTop: 12 },
+  skillCard: {
+    background: "#FFFBEC", border: "2px solid #E0D3B5",
+    borderRadius: 14, padding: 14,
+    display: "flex", gap: 12, alignItems: "flex-start",
+  },
+  skillIcon: {
+    width: 40, height: 40, borderRadius: 10,
+    display: "grid", placeItems: "center",
+    color: "#FBF6E9", flexShrink: 0,
+  },
+  skillName: { margin: "0 0 2px", fontFamily: "'Fraunces', serif", fontSize: 17, fontWeight: 900 },
+  skillDesc: { margin: 0, fontSize: 13, color: "#5C4A3A", lineHeight: 1.4 },
+};
+
+
+    
+return ReadingApp;
+})();
+
+
+
+/* ============================ WELCOME ============================ */
+function Welcome({ onContinue }) {
+  return (
+    <div style={SS.welcomeRoot}>
+      <div style={SS.welcomeInner}>
+        <div style={SS.welcomeDeco}>
+          <ShellStar size={28} style={{ color: "#E8A33D", opacity: 0.7 }} />
+          <ShellSparkles size={24} style={{ color: "#E76F51", opacity: 0.8, marginLeft: 14, marginTop: 6 }} />
+          <ShellStar size={20} style={{ color: "#7AA095", opacity: 0.6, marginLeft: 10, marginTop: -8 }} />
+        </div>
+
+        <h1 style={SS.welcomeTitle}>English Minutes</h1>
+        <p style={SS.welcomeTagline}>Daily phonics, spelling and reading practice for Charlie and Freddie</p>
+
+        <div style={SS.welcomeIllustration}>
+          <div style={SS.welcomeIconWrap}>
+            <ShellBook size={36} style={{ color: "#143232" }} />
+          </div>
+          <div style={SS.welcomeIconDivider} />
+          <div style={SS.welcomeIconWrap}>
+            <ShellPencil size={32} style={{ color: "#143232" }} />
+          </div>
+        </div>
+
+        <button style={SS.welcomeCta} onClick={onContinue}>
+          Continue
+          <ShellArrowRight size={20} style={{ marginLeft: 10 }} />
+        </button>
+
+        <p style={SS.welcomeFootnote}>Tap to begin</p>
+      </div>
+    </div>
+  );
+}
+
+/* ============================ PICKER ============================ */
+function Picker({ onPick }) {
+  return (
+    <div style={SS.pickerRoot}>
+      <div style={SS.pickerInner}>
+        <h2 style={SS.pickerTitle}>What would you like to practise?</h2>
+        <p style={SS.pickerSub}>Pick a topic to get started</p>
+
+        <button style={SS.pickerCard} onClick={() => onPick("phonics")}>
+          <div style={{ ...SS.pickerIcon, background: "#E8EEEC" }}>
+            <ShellPencil size={34} style={{ color: "#143232" }} />
+          </div>
+          <div style={SS.pickerCardText}>
+            <div style={SS.pickerCardTitle}>Phonics & Spelling</div>
+            <div style={SS.pickerCardDesc}>Daily phonics, spelling, grammar and punctuation</div>
+          </div>
+          <ShellChevronRight size={22} style={{ color: "#7a8b80", marginLeft: 8, flexShrink: 0 }} />
+        </button>
+
+        <button style={SS.pickerCard} onClick={() => onPick("reading")}>
+          <div style={{ ...SS.pickerIcon, background: "#FCE6D9" }}>
+            <ShellBook size={34} style={{ color: "#E76F51" }} />
+          </div>
+          <div style={SS.pickerCardText}>
+            <div style={SS.pickerCardTitle}>Reading</div>
+            <div style={SS.pickerCardDesc}>This week's storybook with comprehension questions</div>
+          </div>
+          <ShellChevronRight size={22} style={{ color: "#7a8b80", marginLeft: 8, flexShrink: 0 }} />
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/* ============================ SWITCH BUTTON ============================ */
+function SwitchButton({ onClick, app }) {
+  // Place top-left, above app chrome
+  return (
+    <button onClick={onClick} style={{
+      ...SS.switchBtn,
+      // Reading app has cream bg, phonics has bisque bg - blend with both
+      background: app === "reading" ? "rgba(20, 50, 50, 0.92)" : "rgba(20, 50, 50, 0.92)",
+    }}>
+      <ShellHome size={16} style={{ marginRight: 6 }} />
+      <span style={{ fontSize: 13, fontWeight: 600 }}>Switch</span>
+    </button>
+  );
+}
+
+/* ============================ SHELL ============================ */
+function Shell() {
+  const [view, setView] = useState("welcome"); // welcome | picker | phonics | reading
+
+  // Persist last view so phone refresh doesn't always reset to welcome
+  useEffect(() => {
+    try {
+      const last = localStorage.getItem("english_minutes_last_view");
+      if (last && (last === "phonics" || last === "reading" || last === "picker")) {
+        setView(last);
+      }
+    } catch {}
+  }, []);
+
+  useEffect(() => {
+    try {
+      if (view !== "welcome") localStorage.setItem("english_minutes_last_view", view);
+    } catch {}
+  }, [view]);
+
+  if (view === "welcome") {
+    return <Welcome onContinue={() => setView("picker")} />;
+  }
+  if (view === "picker") {
+    return <Picker onPick={(app) => setView(app)} />;
+  }
+
+  return (
+    <>
+      <SwitchButton onClick={() => setView("picker")} app={view} />
+      {view === "phonics" ? <PhonicsAppCmp /> : <ReadingAppCmp />}
+    </>
+  );
+}
+
+/* ============================ SHELL STYLES ============================ */
+const SS = {
+  welcomeRoot: {
+    minHeight: "100vh",
+    background: "linear-gradient(160deg, #FBF6E9 0%, #F5EFE6 50%, #E8EEEC 100%)",
+    display: "flex", alignItems: "center", justifyContent: "center",
+    padding: "32px 24px", boxSizing: "border-box",
+  },
+  welcomeInner: {
+    maxWidth: 420, width: "100%", textAlign: "center",
+    display: "flex", flexDirection: "column", alignItems: "center",
+  },
+  welcomeDeco: {
+    display: "flex", alignItems: "center", marginBottom: 18,
+  },
+  welcomeTitle: {
+    fontFamily: "'Fraunces', Georgia, serif",
+    fontSize: 52, fontWeight: 700,
+    color: "#143232",
+    margin: "0 0 12px",
+    letterSpacing: "-0.02em",
+    lineHeight: 1.05,
+  },
+  welcomeTagline: {
+    fontSize: 16, color: "#5C6F66",
+    margin: "0 0 40px",
+    lineHeight: 1.5,
+    maxWidth: 320,
+  },
+  welcomeIllustration: {
+    display: "flex", alignItems: "center", gap: 0,
+    marginBottom: 48,
+  },
+  welcomeIconWrap: {
+    width: 80, height: 80, borderRadius: 24,
+    background: "#FAFAFA",
+    border: "3px solid #E5DDC9",
+    display: "grid", placeItems: "center",
+    boxShadow: "0 6px 16px rgba(20, 50, 50, 0.08)",
+  },
+  welcomeIconDivider: {
+    width: 28, height: 3, background: "#E5DDC9", borderRadius: 2,
+  },
+  welcomeCta: {
+    background: "#143232", color: "#FAFAFA",
+    padding: "16px 36px", borderRadius: 999,
+    border: "none", fontSize: 17, fontWeight: 700,
+    display: "inline-flex", alignItems: "center",
+    boxShadow: "0 8px 20px rgba(20, 50, 50, 0.25)",
+    cursor: "pointer", letterSpacing: "0.01em",
+  },
+  welcomeFootnote: {
+    fontSize: 12, color: "#9aa89f",
+    marginTop: 18, letterSpacing: "0.08em", textTransform: "uppercase",
+  },
+
+  pickerRoot: {
+    minHeight: "100vh",
+    background: "#F5EFE6",
+    display: "flex", alignItems: "center", justifyContent: "center",
+    padding: "32px 20px", boxSizing: "border-box",
+  },
+  pickerInner: {
+    maxWidth: 460, width: "100%",
+  },
+  pickerTitle: {
+    fontFamily: "'Fraunces', Georgia, serif",
+    fontSize: 30, fontWeight: 700,
+    color: "#143232",
+    margin: "0 0 6px",
+    lineHeight: 1.2,
+  },
+  pickerSub: {
+    fontSize: 15, color: "#5C6F66",
+    margin: "0 0 28px",
+  },
+  pickerCard: {
+    width: "100%",
+    background: "#FAFAFA", border: "2px solid #E5DDC9",
+    borderRadius: 18, padding: "20px 18px",
+    display: "flex", alignItems: "center", gap: 16,
+    marginBottom: 14,
+    boxShadow: "0 2px 8px rgba(20, 50, 50, 0.04)",
+    cursor: "pointer", textAlign: "left",
+    transition: "transform 0.08s ease, box-shadow 0.08s ease",
+  },
+  pickerIcon: {
+    width: 64, height: 64, borderRadius: 16,
+    display: "grid", placeItems: "center", flexShrink: 0,
+  },
+  pickerCardText: { flex: 1, minWidth: 0 },
+  pickerCardTitle: {
+    fontFamily: "'Fraunces', Georgia, serif",
+    fontSize: 20, fontWeight: 700, color: "#143232",
+    marginBottom: 3,
+  },
+  pickerCardDesc: {
+    fontSize: 13, color: "#5C6F66", lineHeight: 1.4,
+  },
+
+  switchBtn: {
+    position: "fixed", top: 12, left: 12, zIndex: 9999,
+    color: "#FAFAFA",
+    padding: "8px 14px", borderRadius: 999,
+    border: "none",
+    display: "inline-flex", alignItems: "center",
+    boxShadow: "0 4px 12px rgba(0, 0, 0, 0.2)",
+    cursor: "pointer",
+    backdropFilter: "blur(8px)",
+    WebkitBackdropFilter: "blur(8px)",
+  },
+};
+
+const _shellRoot = ReactDOM.createRoot(document.getElementById("root"));
+_shellRoot.render(<Shell />);
 
   </script>
 </body>
