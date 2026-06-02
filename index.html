@@ -1376,11 +1376,37 @@ function DoneScreen({ profile, data, setData, answers, questions, onDone, onExtr
 
     let earned, streak, lastDate, days;
     if (isExtra) {
-      // Bonus practice: 2 points per correct, no day bonus, streak/day unchanged
+      // Bonus practice: 2 points per correct, no day bonus, streak unchanged.
+      // BUT we DO extend the day record so all activity is visible in Results.
       earned = score * 2;
       streak = profile.streak || 0;
       lastDate = profile.lastDate;
-      days = profile.days || {};
+
+      const existingDay = (profile.days || {})[today] || {
+        score: 0, total: 0, finishedAt: new Date().toISOString(),
+        perSubject: {}, earned: 0, bonusRounds: 0,
+      };
+
+      // Merge perSubject from this bonus round into the day's perSubject
+      const mergedDayPerSubject = { ...(existingDay.perSubject || {}) };
+      for (const [k, v] of Object.entries(perSubject)) {
+        if (!mergedDayPerSubject[k]) mergedDayPerSubject[k] = { attempts: 0, correct: 0 };
+        mergedDayPerSubject[k].attempts += v.attempts;
+        mergedDayPerSubject[k].correct += v.correct;
+      }
+
+      days = {
+        ...(profile.days || {}),
+        [today]: {
+          ...existingDay,
+          score: (existingDay.score || 0) + score,
+          total: (existingDay.total || 0) + total,
+          earned: (existingDay.earned || 0) + earned,
+          perSubject: mergedDayPerSubject,
+          bonusRounds: (existingDay.bonusRounds || 0) + 1,
+          lastActivityAt: new Date().toISOString(),
+        },
+      };
     } else {
       const challengerCorrect = questions.filter((q, i) => q.challenger && answers[i] && answers[i].correct).length;
       earned = score * 5 + 10 + challengerCorrect * 5;
@@ -1395,7 +1421,7 @@ function DoneScreen({ profile, data, setData, answers, questions, onDone, onExtr
       else if (profile.lastDate === today) {} // unchanged
       else streak = 1;
       lastDate = today;
-      days = { ...(profile.days || {}), [today]: { score, total, finishedAt: new Date().toISOString(), perSubject, earned } };
+      days = { ...(profile.days || {}), [today]: { score, total, finishedAt: new Date().toISOString(), perSubject, earned, bonusRounds: 0 } };
     }
 
     const next = {
@@ -1550,7 +1576,14 @@ function ResultsView({ profile, onBack }) {
   for (let i = 13; i >= 0; i--) {
     const d = new Date(); d.setDate(d.getDate() - i);
     const iso = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-    last14.push({ iso, day: d.toLocaleDateString("en-GB", { weekday: "narrow" }), done: !!days[iso], score: days[iso] ? days[iso].score : 0, total: days[iso] ? days[iso].total : 0 });
+    last14.push({
+      iso,
+      day: d.toLocaleDateString("en-GB", { weekday: "narrow" }),
+      done: !!days[iso],
+      score: days[iso] ? days[iso].score : 0,
+      total: days[iso] ? days[iso].total : 0,
+      bonusRounds: days[iso] ? (days[iso].bonusRounds || 0) : 0,
+    });
   }
 
   return (
@@ -1572,6 +1605,36 @@ function ResultsView({ profile, onBack }) {
           <div style={S.statLabel}>Streak</div>
         </div>
       </div>
+
+      {(() => {
+        const today = todayISO();
+        const td = days[today];
+        if (!td) return null;
+        const bonusRounds = td.bonusRounds || 0;
+        const totalQs = td.total || 0;
+        return (
+          <div style={S.todayCard}>
+            <div style={S.todayHeader}>
+              <Sparkles size={16} color="#D4A04A" />
+              <span style={{ marginLeft: 6, fontWeight: 700, fontSize: 14 }}>Today's activity</span>
+            </div>
+            <div style={S.todayStats}>
+              <div style={S.todayStat}>
+                <div style={S.todayStatNum}>{td.score || 0}<span style={S.todayStatTotal}>/{totalQs}</span></div>
+                <div style={S.todayStatLabel}>questions correct</div>
+              </div>
+              <div style={S.todayStat}>
+                <div style={S.todayStatNum}>{1 + bonusRounds}</div>
+                <div style={S.todayStatLabel}>{bonusRounds === 0 ? "round done" : `rounds done${bonusRounds > 0 ? ` (1 + ${bonusRounds} bonus)` : ""}`}</div>
+              </div>
+              <div style={S.todayStat}>
+                <div style={S.todayStatNum}>{td.earned || 0}</div>
+                <div style={S.todayStatLabel}>points earned</div>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {(bestRow || workRow) && (
         <div style={S.insightCard}>
@@ -1624,7 +1687,15 @@ function ResultsView({ profile, onBack }) {
             <div style={{
               ...S.calDot,
               background: d.done ? (d.score / d.total >= 0.8 ? "#3DAA7C" : d.score / d.total >= 0.5 ? "#D4A04A" : "#E07856") : "#E5DDC9",
-            }}>{d.done ? d.score : ""}</div>
+              position: "relative",
+            }}>
+              {d.done ? d.score : ""}
+              {d.bonusRounds > 0 && (
+                <span title={`${d.bonusRounds} bonus round${d.bonusRounds > 1 ? "s" : ""}`} style={S.calBonusBadge}>
+                  +{d.bonusRounds}
+                </span>
+              )}
+            </div>
             <div style={S.calLabel}>{d.day}</div>
           </div>
         ))}
@@ -2227,7 +2298,30 @@ const S = {
   calRow: { display: "grid", gridTemplateColumns: "repeat(14, 1fr)", gap: 4, marginTop: 6 },
   calDay: { display: "flex", flexDirection: "column", alignItems: "center" },
   calDot: { width: "100%", aspectRatio: "1", borderRadius: 6, display: "flex", alignItems: "center", justifyContent: "center", color: "#FAFAFA", fontWeight: 700, fontSize: 11 },
+  calBonusBadge: {
+    position: "absolute", top: -6, right: -6,
+    background: "#D4A04A", color: "#fff",
+    fontSize: 9, fontWeight: 700,
+    minWidth: 16, height: 16,
+    borderRadius: 8, padding: "0 4px",
+    display: "flex", alignItems: "center", justifyContent: "center",
+    border: "2px solid #F5EFE6",
+    lineHeight: 1,
+  },
   calLabel: { fontSize: 9, color: "#5a6b5f", marginTop: 2 },
+
+  /* Today's activity card */
+  todayCard: {
+    background: "linear-gradient(135deg, #FFF6E0 0%, #FFEFC8 100%)",
+    border: "2px solid #F0D788",
+    borderRadius: 14, padding: 14, marginBottom: 14,
+  },
+  todayHeader: { display: "flex", alignItems: "center", marginBottom: 10 },
+  todayStats: { display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 },
+  todayStat: { textAlign: "center" },
+  todayStatNum: { fontSize: 22, fontWeight: 700, color: "#143232", lineHeight: 1.1 },
+  todayStatTotal: { fontSize: 14, color: "#7a6230", fontWeight: 600 },
+  todayStatLabel: { fontSize: 10, color: "#7a6230", marginTop: 2, lineHeight: 1.25 },
 
   /* Collection */
   collGrid: { display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 },
