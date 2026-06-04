@@ -175,24 +175,40 @@ const mergeWithDefault = (parsed) => {
 
 const hasFirebase = () => typeof firebase !== "undefined" && firebase.database;
 
-// Returns a "value score" for a data object - sum of points + days completed across profiles.
-// Used as a guard so we never overwrite a high-value Firebase state with a low-value local state.
-function dataValueScore(d) {
-  if (!d || !d.profiles) return 0;
-  let score = 0;
-  for (const p of Object.values(d.profiles)) {
-    score += (p.points || 0);
-    score += Object.keys(p.days || {}).length * 100;
-    score += Object.keys(p.subjects || {}).length;
-    score += (p.unlocked || []).length;
+// Track the highest "days completed" count per profile we've ever seen.
+// This is the most important thing to protect - losing day records loses the kid's history.
+// Points alone can decrease legitimately when buying character parts, so we don't guard those.
+const _highWaterMarks = {}; // { profileId: { daysCount, hasSubjects, hasUnlocked } }
+
+function updateHighWater(d) {
+  if (!d || !d.profiles) return;
+  for (const [id, p] of Object.entries(d.profiles)) {
+    if (!_highWaterMarks[id]) _highWaterMarks[id] = { daysCount: 0, hasSubjects: false, hasUnlocked: false };
+    const w = _highWaterMarks[id];
+    w.daysCount = Math.max(w.daysCount, Object.keys(p.days || {}).length);
+    w.hasSubjects = w.hasSubjects || Object.keys(p.subjects || {}).length > 0;
+    w.hasUnlocked = w.hasUnlocked || (p.unlocked || []).length > 0;
   }
-  return score;
 }
 
-// Tracks the highest-value data we've ever seen so we can refuse to save a reset on top of it
-let _lastKnownGoodScore = 0;
+function isReset(d) {
+  // Returns true if the data looks like a hard reset over known-good progress.
+  // Specifically: any profile has FEWER days than we've ever seen for that profile.
+  if (!d || !d.profiles) return true;
+  for (const [id, w] of Object.entries(_highWaterMarks)) {
+    const p = d.profiles[id];
+    if (!p) return true; // profile entirely missing - definitely a reset
+    const curDays = Object.keys(p.days || {}).length;
+    if (curDays < w.daysCount) return true; // lost day records
+  }
+  return false;
+}
+
 // Tracks whether the initial load from Firebase has completed - we BLOCK saves until it does
 let _firebaseLoadComplete = false;
+// Set to true by the explicit "Reset profile" button to allow an intentional wipe
+let _allowReset = false;
+function allowResetOnce() { _allowReset = true; }
 
 async function loadData() {
   // Optimistic: read local first for instant UI
@@ -201,7 +217,7 @@ async function loadData() {
     const raw = typeof localStorage !== "undefined" ? localStorage.getItem(KEY) : null;
     if (raw) local = mergeWithDefault(JSON.parse(raw));
   } catch {}
-  if (local) _lastKnownGoodScore = Math.max(_lastKnownGoodScore, dataValueScore(local));
+  if (local) updateHighWater(local);
 
   // Then try Firebase; prefer remote if present
   try {
@@ -211,7 +227,7 @@ async function loadData() {
       _firebaseLoadComplete = true;
       if (v) {
         const merged = mergeWithDefault(v);
-        _lastKnownGoodScore = Math.max(_lastKnownGoodScore, dataValueScore(merged));
+        updateHighWater(merged);
         try { localStorage.setItem(KEY, JSON.stringify(v)); } catch {}
         return merged;
       }
@@ -222,21 +238,18 @@ async function loadData() {
 }
 
 async function saveData(d) {
-  // CRITICAL GUARD: never overwrite known-good data with a reset.
-  // This catches the race where the app boots, Firebase hasn't responded yet, the user
-  // taps something which triggers a save of default/zero data, and that empty save
-  // would wipe the real data on Firebase.
+  // GUARD 1: never save before initial Firebase load completes
   if (!_firebaseLoadComplete) {
-    console.warn("saveData blocked - Firebase load not complete yet");
+    console.warn("[english-minutes] saveData blocked - Firebase load not complete yet");
     return;
   }
-  const incomingScore = dataValueScore(d);
-  if (incomingScore < _lastKnownGoodScore - 50) {
-    // Allow a small drop (e.g. spending points on a part) but block a wholesale wipe
-    console.warn(`saveData blocked - would wipe data (incoming score ${incomingScore} vs known good ${_lastKnownGoodScore})`);
+  // GUARD 2: never accidentally wipe day records / progress history
+  if (isReset(d) && !_allowReset) {
+    console.warn("[english-minutes] saveData blocked - would wipe day records. High water marks:", _highWaterMarks);
     return;
   }
-  _lastKnownGoodScore = Math.max(_lastKnownGoodScore, incomingScore);
+  _allowReset = false; // consume the one-time allow flag
+  updateHighWater(d);
 
   // Always save locally for instant access
   try {
@@ -259,7 +272,7 @@ function subscribeData(callback) {
     const v = snap.val();
     if (v) {
       const merged = mergeWithDefault(v);
-      _lastKnownGoodScore = Math.max(_lastKnownGoodScore, dataValueScore(merged));
+      updateHighWater(merged);
       try { localStorage.setItem(KEY, JSON.stringify(v)); } catch {}
       callback(merged);
     }
@@ -2028,6 +2041,7 @@ function SettingsView({ profile, data, setData, onBack }) {
   };
   const reset = () => {
     if (!window.confirm(`Reset all progress for ${profile.name}? This cannot be undone.`)) return;
+    allowResetOnce(); // signal to the guard that this wipe is intentional
     const next = {
       ...data,
       profiles: {
@@ -2128,6 +2142,7 @@ function SettingsView({ profile, data, setData, onBack }) {
                   }
                   const confirmed = confirm("This will replace all current progress with the backup. Continue?");
                   if (!confirmed) return;
+                  allowResetOnce(); // restoring may have fewer days than current, allow it
                   setData(mergeWithDefault(parsed));
                   alert("Backup restored!");
                 } catch (err) {
