@@ -609,7 +609,8 @@ function qCewRead(rng, pool) {
 }
 
 function qCewSpell(rng, pool) {
-  const target = pick(pool.filter(w => w.length <= 5 && w !== "I"), rng);
+  // Allow most words; only skip "I" (which is just one letter)
+  const target = pick(pool.filter(w => w !== "I"), rng);
   return {
     subject: "spelling",
     type: "spell",
@@ -635,8 +636,8 @@ function qHfwSpell(rng, pool) {
 }
 
 function qPlural(rng) {
-  const wordsS  = ["cat","dog","book","tree","car","hat","cup","star"];
-  const wordsEs = ["box","bus","fox","kiss","wish","glass","brush"];
+  const wordsS  = ["cat","dog","book","tree","car","hat","cup","star","bird","apple","ball","leaf","frog","drum","cake","key","lamp","sock","pen","clock","ring","spoon","fork","hand","shoe","bell","kite","map","worm","plate"];
+  const wordsEs = ["box","bus","fox","kiss","wish","glass","brush","dish","watch","beach","fish","bench","peach","witch","branch"];
   const useEs = rng() < 0.4;
   const w = pick(useEs ? wordsEs : wordsS, rng);
   const correct = useEs ? w + "es" : w + "s";
@@ -657,13 +658,24 @@ function qPlural(rng) {
 
 function qSuffixIng(rng) {
   const set = [
-    { base: "jump", out: "jumping" },
-    { base: "play", out: "playing" },
-    { base: "look", out: "looking" },
-    { base: "read", out: "reading" },
-    { base: "go",   out: "going" },
-    { base: "sing", out: "singing" },
-    { base: "help", out: "helping" },
+    { base: "jump",  out: "jumping" },
+    { base: "play",  out: "playing" },
+    { base: "look",  out: "looking" },
+    { base: "read",  out: "reading" },
+    { base: "go",    out: "going" },
+    { base: "sing",  out: "singing" },
+    { base: "help",  out: "helping" },
+    { base: "talk",  out: "talking" },
+    { base: "walk",  out: "walking" },
+    { base: "eat",   out: "eating" },
+    { base: "sleep", out: "sleeping" },
+    { base: "drink", out: "drinking" },
+    { base: "kick",  out: "kicking" },
+    { base: "wait",  out: "waiting" },
+    { base: "feel",  out: "feeling" },
+    { base: "fly",   out: "flying" },
+    { base: "ride",  out: "riding" },
+    { base: "climb", out: "climbing" },
   ];
   const item = pick(set, rng);
   const distractors = [
@@ -685,12 +697,24 @@ function qSuffixIng(rng) {
 
 function qSuffixEd(rng) {
   const set = [
-    { base: "jump", out: "jumped" },
-    { base: "play", out: "played" },
-    { base: "look", out: "looked" },
-    { base: "help", out: "helped" },
-    { base: "talk", out: "talked" },
-    { base: "ask",  out: "asked" },
+    { base: "jump",  out: "jumped" },
+    { base: "play",  out: "played" },
+    { base: "look",  out: "looked" },
+    { base: "help",  out: "helped" },
+    { base: "talk",  out: "talked" },
+    { base: "ask",   out: "asked" },
+    { base: "walk",  out: "walked" },
+    { base: "kick",  out: "kicked" },
+    { base: "wait",  out: "waited" },
+    { base: "shout", out: "shouted" },
+    { base: "open",  out: "opened" },
+    { base: "wash",  out: "washed" },
+    { base: "fix",   out: "fixed" },
+    { base: "rest",  out: "rested" },
+    { base: "paint", out: "painted" },
+    { base: "watch", out: "watched" },
+    { base: "pick",  out: "picked" },
+    { base: "land",  out: "landed" },
   ];
   const item = pick(set, rng);
   const distractors = [
@@ -710,6 +734,59 @@ function qSuffixEd(rng) {
   };
 }
 
+
+
+function qIrregularPast(rng) {
+  // Irregular past tense - the surprising forms that don't follow the "-ed" rule.
+  // Distractors include the "-ed" form (which the kid might guess) plus a couple of others.
+  const set = [
+    { base: "go",    past: "went",    wrong: "goed" },
+    { base: "see",   past: "saw",     wrong: "seed" },
+    { base: "eat",   past: "ate",     wrong: "eated" },
+    { base: "run",   past: "ran",     wrong: "runned" },
+    { base: "have",  past: "had",     wrong: "haved" },
+    { base: "is",    past: "was",     wrong: "ised" },
+    { base: "do",    past: "did",     wrong: "doed" },
+    { base: "give",  past: "gave",    wrong: "gived" },
+    { base: "take",  past: "took",    wrong: "taked" },
+    { base: "come",  past: "came",    wrong: "comed" },
+    { base: "find",  past: "found",   wrong: "finded" },
+    { base: "make",  past: "made",    wrong: "maked" },
+    { base: "say",   past: "said",    wrong: "sayed" },
+    { base: "tell",  past: "told",    wrong: "telled" },
+    { base: "know",  past: "knew",    wrong: "knowed" },
+    { base: "sit",   past: "sat",     wrong: "sitted" },
+    { base: "stand", past: "stood",   wrong: "standed" },
+    { base: "think", past: "thought", wrong: "thinked" },
+    { base: "get",   past: "got",     wrong: "getted" },
+    { base: "buy",   past: "bought",  wrong: "buyed" },
+    { base: "fly",   past: "flew",    wrong: "flyed" },
+    { base: "swim",  past: "swam",    wrong: "swimmed" },
+    { base: "drink", past: "drank",   wrong: "drinked" },
+    { base: "sleep", past: "slept",   wrong: "sleeped" },
+    { base: "ride",  past: "rode",    wrong: "rided" },
+    { base: "write", past: "wrote",   wrong: "writed" },
+    { base: "draw",  past: "drew",    wrong: "drawed" },
+    { base: "feel",  past: "felt",    wrong: "feeled" },
+    { base: "fall",  past: "fell",    wrong: "falled" },
+    { base: "break", past: "broke",   wrong: "breaked" },
+    { base: "catch", past: "caught",  wrong: "catched" },
+    { base: "wake",  past: "woke",    wrong: "waked" },
+  ];
+  const item = pick(set, rng);
+  // Build options: the correct past, the "-ed" wrong form, and two extra plausible-but-wrong forms
+  const otherPasts = sample(set.filter(s => s.past !== item.past), 2, rng).map(s => s.past);
+  return {
+    subject: "grammar",
+    type: "irregular_past",
+    prompt: `What is the past tense of "${item.base}"?`,
+    word: item.base,
+    audio: `What is the past tense of the word ${item.base}?`,
+    answer: item.past,
+    options: shuffle([item.past, item.wrong, ...otherPasts], rng),
+    mode: "choice",
+  };
+}
 function qPrefixUn(rng) {
   const set = [
     { base: "happy", meaning: "not happy" },
@@ -717,6 +794,15 @@ function qPrefixUn(rng) {
     { base: "well",  meaning: "not well" },
     { base: "tidy",  meaning: "not tidy" },
     { base: "safe",  meaning: "not safe" },
+    { base: "fair",  meaning: "not fair" },
+    { base: "lucky", meaning: "not lucky" },
+    { base: "fit",   meaning: "not fit" },
+    { base: "lock",  meaning: "to undo a lock" },
+    { base: "load",  meaning: "to take a load off" },
+    { base: "pack",  meaning: "to take things out of a bag" },
+    { base: "do",    meaning: "to undo something" },
+    { base: "wrap",  meaning: "to take paper off a present" },
+    { base: "zip",   meaning: "to open a zip" },
   ];
   const item = pick(set, rng);
   const correct = "un" + item.base;
@@ -738,12 +824,28 @@ function qPrefixUn(rng) {
 
 function qFullStopOrQuestion(rng) {
   const sentences = [
+    // Statements (.)
     { text: "I love my dog", end: "." },
+    { text: "We went to the park", end: "." },
+    { text: "The cat sat on the mat", end: "." },
+    { text: "My brother is funny", end: "." },
+    { text: "It is very sunny today", end: "." },
+    { text: "I had toast for breakfast", end: "." },
+    { text: "The bus is late", end: "." },
+    { text: "My teacher reads us stories", end: "." },
+    { text: "We have a new puppy", end: "." },
+    { text: "I can ride my bike", end: "." },
+    // Questions (?)
     { text: "What is your name", end: "?" },
     { text: "Where do you live", end: "?" },
-    { text: "We went to the park", end: "." },
     { text: "How old are you", end: "?" },
-    { text: "The cat sat on the mat", end: "." },
+    { text: "Why is the sky blue", end: "?" },
+    { text: "Can I have a sweet", end: "?" },
+    { text: "When is your birthday", end: "?" },
+    { text: "Who is at the door", end: "?" },
+    { text: "Are we there yet", end: "?" },
+    { text: "Do you like jelly", end: "?" },
+    { text: "Will you play with me", end: "?" },
   ];
   const s = pick(sentences, rng);
   return {
@@ -760,11 +862,27 @@ function qFullStopOrQuestion(rng) {
 
 function qExclaim(rng) {
   const sentences = [
+    // Exclamations (!)
     { text: "What a lovely day", end: "!" },
     { text: "Watch out", end: "!" },
     { text: "How funny that is", end: "!" },
+    { text: "What a mess", end: "!" },
+    { text: "Look at that", end: "!" },
+    { text: "Hooray we won", end: "!" },
+    { text: "Stop right now", end: "!" },
+    { text: "What a big surprise", end: "!" },
+    // Statements (.)
     { text: "I am six", end: "." },
+    { text: "The sun is hot", end: "." },
+    { text: "I had cake for tea", end: "." },
+    { text: "My socks are stripey", end: "." },
+    // Questions (?)
     { text: "Are you ready", end: "?" },
+    { text: "Is it tea time", end: "?" },
+    { text: "Can you swim", end: "?" },
+    { text: "Do you like rain", end: "?" },
+    { text: "Where are my shoes", end: "?" },
+    { text: "How does it work", end: "?" },
   ];
   const s = pick(sentences, rng);
   return {
@@ -780,34 +898,85 @@ function qExclaim(rng) {
 }
 
 function qCapital(rng) {
+  // Sentence is shown with the sentence-start already correctly capitalised, but with ONE proper
+  // noun (name/place/day/month) deliberately left lowercase. The kid spots which word has a missing
+  // capital letter. So only ONE answer is correct.
   const sentences = [
-    { words: ["we","went","to","london"], answer: 3 },
-    { words: ["i","like","apples"], answer: 0 },
-    { words: ["my","name","is","charlie"], answer: 3 },
-    { words: ["on","monday","we","played"], answer: 1 },
-    { words: ["it","is","july"], answer: 2 },
-    { words: ["she","lives","in","england"], answer: 3 },
+    // Place names
+    { display: ["We","went","to","london"],            answer: 3, hint: "place" },
+    { display: ["She","lives","in","england"],         answer: 3, hint: "country" },
+    { display: ["My","dad","drives","to","manchester"],answer: 4, hint: "city" },
+    { display: ["The","river","is","called","thames"], answer: 4, hint: "river" },
+    { display: ["We","went","camping","in","wales"],   answer: 4, hint: "country" },
+    { display: ["I","want","to","visit","paris"],      answer: 4, hint: "city" },
+    { display: ["They","live","near","brighton"],      answer: 3, hint: "place" },
+    { display: ["The","ship","sailed","to","spain"],   answer: 4, hint: "country" },
+    // Person names
+    { display: ["My","name","is","charlie"],           answer: 3, hint: "name" },
+    { display: ["This","is","my","brother","freddie"], answer: 4, hint: "name" },
+    { display: ["My","best","friend","is","amy"],      answer: 4, hint: "name" },
+    { display: ["The","teacher","is","mrs","jones"],   answer: 4, hint: "name" },
+    { display: ["I","played","with","tom"],            answer: 3, hint: "name" },
+    { display: ["My","mum","is","called","sarah"],     answer: 4, hint: "name" },
+    // Days
+    { display: ["On","monday","we","play","tennis"],   answer: 1, hint: "day of week" },
+    { display: ["We","go","swimming","on","tuesday"],  answer: 4, hint: "day of week" },
+    { display: ["My","party","is","on","saturday"],    answer: 4, hint: "day of week" },
+    { display: ["I","start","school","on","friday"],   answer: 4, hint: "day of week" },
+    { display: ["We","relax","on","sunday"],           answer: 3, hint: "day of week" },
+    // Months
+    { display: ["It","is","july"],                     answer: 2, hint: "month" },
+    { display: ["My","birthday","is","in","march"],    answer: 4, hint: "month" },
+    { display: ["School","ends","in","july"],          answer: 3, hint: "month" },
+    { display: ["We","have","fun","in","december"],    answer: 4, hint: "month" },
+    { display: ["Spring","starts","in","april"],       answer: 3, hint: "month" },
+    // Mixed: the word "I" being lowercase
+    { display: ["When","i","am","tired","i","sleep"],  answer: 1, hint: "the word I" },
+    { display: ["Yesterday","i","went","to","school"], answer: 1, hint: "the word I" },
   ];
   const s = pick(sentences, rng);
-  const correct = s.words[s.answer];
+  const correct = s.display[s.answer];
   return {
     subject: "punctuation",
     type: "capital",
-    prompt: `Which word needs a capital letter?`,
-    audio: `Which word needs a capital letter in this sentence: ${s.words.join(" ")}`,
-    sentence: s.words.join(" "),
+    prompt: `Which word has a missing capital letter? (Hint: it's a ${s.hint})`,
+    audio: `In this sentence: ${s.display.join(" ")}. Which word has a missing capital letter?`,
+    sentence: s.display.join(" "),
     answer: correct,
-    options: shuffle(s.words, rng),
+    options: shuffle(s.display, rng),
     mode: "choice",
   };
 }
 
 function qConjunction(rng) {
   const set = [
+    // and
     { before: "I had toast", after: "I had juice", word: "and" },
-    { before: "I was tired", after: "I went to bed", word: "so" },
+    { before: "She likes apples", after: "she likes bananas", word: "and" },
+    { before: "We swam", after: "we played in the sand", word: "and" },
+    { before: "The dog barked", after: "the cat ran away", word: "and" },
+    // but
     { before: "I like cats", after: "I love dogs more", word: "but" },
-    { before: "We ate dinner", after: "we watched a film", word: "then" },
+    { before: "It was sunny", after: "it was windy", word: "but" },
+    { before: "I tried hard", after: "I could not do it", word: "but" },
+    { before: "He is small", after: "he is very strong", word: "but" },
+    // because
+    { before: "I am tired", after: "I stayed up late", word: "because" },
+    { before: "The plant grew", after: "we watered it", word: "because" },
+    { before: "She is happy", after: "it is her birthday", word: "because" },
+    // so
+    { before: "I was tired", after: "I went to bed", word: "so" },
+    { before: "It was raining", after: "we stayed inside", word: "so" },
+    { before: "I was hungry", after: "I had a snack", word: "so" },
+    // or
+    { before: "Would you like milk", after: "would you like juice", word: "or" },
+    { before: "We can swim", after: "we can ride bikes", word: "or" },
+    // when
+    { before: "I cheered", after: "I scored the goal", word: "when" },
+    { before: "She giggled", after: "she saw the puppy", word: "when" },
+    // if
+    { before: "I will be happy", after: "you come too", word: "if" },
+    { before: "We can play outside", after: "it stops raining", word: "if" },
   ];
   const item = pick(set, rng);
   const distractors = ["if","because","or","when"].filter(w => w !== item.word).slice(0,3);
@@ -825,12 +994,33 @@ function qConjunction(rng) {
 
 function qWordClass(rng) {
   const set = [
-    { text: ["The","cat","runs","fast"], type: "verb",      answer: "runs" },
-    { text: ["A","big","dog","barked"],  type: "adjective", answer: "big" },
-    { text: ["The","red","car","stops"], type: "noun",      answer: "car" },
-    { text: ["My","mum","is","happy"],   type: "adjective", answer: "happy" },
-    { text: ["The","boy","plays","ball"],type: "verb",      answer: "plays" },
-    { text: ["I","saw","a","star"],      type: "noun",      answer: "star" },
+    // verbs
+    { text: ["The","cat","runs","fast"],         type: "verb", answer: "runs" },
+    { text: ["The","boy","plays","ball"],        type: "verb", answer: "plays" },
+    { text: ["We","jumped","over","puddles"],    type: "verb", answer: "jumped" },
+    { text: ["She","sings","at","school"],       type: "verb", answer: "sings" },
+    { text: ["The","baby","laughs","loudly"],    type: "verb", answer: "laughs" },
+    { text: ["My","sister","reads","books"],     type: "verb", answer: "reads" },
+    { text: ["The","kettle","whistles"],         type: "verb", answer: "whistles" },
+    { text: ["A","bee","stings"],                type: "verb", answer: "stings" },
+    // adjectives
+    { text: ["A","big","dog","barked"],          type: "adjective", answer: "big" },
+    { text: ["My","mum","is","happy"],           type: "adjective", answer: "happy" },
+    { text: ["The","tall","tree","sways"],       type: "adjective", answer: "tall" },
+    { text: ["A","silly","goose","quacks"],      type: "adjective", answer: "silly" },
+    { text: ["I","saw","a","fluffy","cat"],      type: "adjective", answer: "fluffy" },
+    { text: ["The","cold","wind","blew"],        type: "adjective", answer: "cold" },
+    { text: ["A","loud","alarm","rang"],         type: "adjective", answer: "loud" },
+    { text: ["The","tiny","mouse","squeaks"],    type: "adjective", answer: "tiny" },
+    // nouns
+    { text: ["The","red","car","stops"],         type: "noun", answer: "car" },
+    { text: ["I","saw","a","star"],              type: "noun", answer: "star" },
+    { text: ["My","dog","ran","away"],           type: "noun", answer: "dog" },
+    { text: ["The","cake","tasted","nice"],      type: "noun", answer: "cake" },
+    { text: ["A","spider","climbed","the","wall"],type: "noun", answer: "spider" },
+    { text: ["Our","teacher","is","kind"],       type: "noun", answer: "teacher" },
+    { text: ["The","book","fell","down"],        type: "noun", answer: "book" },
+    { text: ["I","found","a","feather"],         type: "noun", answer: "feather" },
   ];
   const item = pick(set, rng);
   return {
@@ -956,7 +1146,7 @@ function generateY1Day(rng, term) {
   const generators = [
     () => qPhonicsGrapheme(rng),
     () => qPhonicsFindWord(rng),
-    () => qCewRead(rng, cewPool),
+    () => qCewSpell(rng, cewPool),
     () => qCewSpell(rng, cewPool),
     () => qHfwSpell(rng, Y1_HFW),
     () => qFullStopOrQuestion(rng),
@@ -973,6 +1163,8 @@ function generateY1Day(rng, term) {
     generators.push(() => qExclaim(rng));
     generators.push(() => qConjunction(rng));
     generators.push(() => qWordClass(rng));
+    generators.push(() => qIrregularPast(rng));
+    generators.push(() => qIrregularPast(rng)); // doubled so it appears more often
   }
 
   // 10 main questions, varied across generators
@@ -989,9 +1181,9 @@ function generateY1Day(rng, term) {
   if (term === "autumn") {
     challenger = [qPlural(rng), qSuffixIng(rng)];
   } else if (term === "spring") {
-    challenger = [qPrefixUn(rng), qWordClass(rng)];
+    challenger = [qPrefixUn(rng), qIrregularPast(rng)];
   } else {
-    challenger = [qWordClass(rng), qConjunction(rng)];
+    challenger = [qIrregularPast(rng), qConjunction(rng)];
   }
 
   return [
