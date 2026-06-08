@@ -49,8 +49,8 @@
   <script crossorigin src="https://unpkg.com/react@18.3.1/umd/react.production.min.js"></script>
   <script crossorigin src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js"></script>
   <script src="https://unpkg.com/@babel/standalone@7.24.7/babel.min.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+  <script defer src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script defer src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
 
   <script>
     // Family code is always defined so the app boots even if Firebase fails to load
@@ -66,15 +66,57 @@
       messagingSenderId: "706834197716",
       appId: "1:706834197716:web:bc50de18da9ff70a0d9f41"
     };
-    if (typeof firebase !== "undefined" && firebase.initializeApp) {
-      try {
-        firebase.initializeApp(FIREBASE_CONFIG);
-      } catch (e) {
-        console.error("Firebase init error:", e);
+
+    // Firebase scripts are deferred (so they don't block the rest of the page). Poll for them
+    // to become available rather than assuming they're loaded synchronously. The Tesla browser
+    // sometimes runs main scripts before deferred ones finish - this handles that gracefully.
+    window._firebaseReady = false;
+    window._firebaseInitAttempts = 0;
+    (function waitForFirebase() {
+      window._firebaseInitAttempts++;
+      if (typeof firebase !== "undefined" && firebase.initializeApp) {
+        try {
+          firebase.initializeApp(FIREBASE_CONFIG);
+          window._firebaseReady = true;
+          console.log("[boot] Firebase ready after " + window._firebaseInitAttempts + " attempt(s)");
+        } catch (e) {
+          console.error("Firebase init error:", e);
+        }
+        return;
       }
-    } else {
-      console.warn("Firebase scripts did not load - running in local-only mode");
+      if (window._firebaseInitAttempts < 50) {
+        setTimeout(waitForFirebase, 100); // 5 seconds max wait
+      } else {
+        console.warn("Firebase scripts did not load after 5s - running in local-only mode");
+      }
+    })();
+
+    // Global error trap: if anything blows up before React mounts, show the user a useful
+    // diagnostic screen rather than a blank page. This is the difference between "the app
+    // is broken" (terrifying) and "we know what went wrong" (workable).
+    window._bootErrors = [];
+    function showBootError(label, details) {
+      window._bootErrors.push({ label, details, t: new Date().toISOString() });
+      var root = document.getElementById("root");
+      if (!root) return;
+      root.innerHTML = '<div style="padding:24px;font-family:-apple-system,system-ui,sans-serif;color:#143232;max-width:560px;margin:40px auto;background:#FAFAFA;border-radius:16px;border:2px solid #E5DDC9;">' +
+        '<div style="font-size:18px;font-weight:700;margin-bottom:12px;">English Minutes had a problem starting up</div>' +
+        '<div style="font-size:14px;color:#5a6b5f;margin-bottom:16px;line-height:1.5;">Try closing and reopening the page. If this keeps happening, the details below will help diagnose it.</div>' +
+        '<details style="font-size:12px;color:#7a8b80;font-family:monospace;background:#F5EFE6;padding:12px;border-radius:8px;">' +
+        '<summary style="cursor:pointer;font-weight:600;color:#143232;">Diagnostic details</summary>' +
+        '<div style="margin-top:8px;white-space:pre-wrap;word-break:break-word;">' +
+        window._bootErrors.map(function(e) { return e.t + " " + e.label + ":\n" + e.details; }).join("\n\n") +
+        '\nUser agent: ' + navigator.userAgent +
+        '\nFirebase ready: ' + window._firebaseReady +
+        '\nFirebase attempts: ' + window._firebaseInitAttempts +
+        '</div></details></div>';
     }
+    window.addEventListener("error", function(e) {
+      showBootError("Uncaught error", (e && e.error && e.error.stack) || (e && e.message) || String(e));
+    });
+    window.addEventListener("unhandledrejection", function(e) {
+      showBootError("Promise rejection", (e && e.reason && e.reason.stack) || String(e && e.reason));
+    });
   </script>
 
   <script type="text/babel" data-presets="react">
@@ -131,8 +173,9 @@ const Pencil = (p) => <Icon {...p}><path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L
 const KEY = "english_app_v1";
 const FB_PATH = "families/" + FAMILY_CODE + "/english";
 
-const newProfile = (id, name, year, theme) => ({
+const newProfile = (id, name, year, theme, yearStart) => ({
   id, name, year, theme,
+  yearStart: yearStart || null,
   points: 0, streak: 0, lastDate: null,
   collection: [], favourite: null,
   subjects: {},
@@ -143,8 +186,11 @@ const DEFAULT_DATA = () => ({
   activeId: null,
   voiceName: null,
   profiles: {
-    charlie: newProfile("charlie", "Charlie", "year1", "monsters"),
-    freddie: newProfile("freddie", "Freddie", "preschool", "dinosaurs"),
+    // Charlie was in Year 1 in academic year 2025/26 (yearStart = 2025)
+    charlie: newProfile("charlie", "Charlie", "year1", "monsters", 2025),
+    // Freddie will start Year 1 in academic year 2027/28 (yearStart = 2027)
+    // Currently preschool; will be Reception in Sept 2026
+    freddie: newProfile("freddie", "Freddie", "preschool", "dinosaurs", 2027),
   },
 });
 
@@ -164,6 +210,8 @@ const mergeWithDefault = (parsed) => {
       days: (parsedProfile.days && typeof parsedProfile.days === "object") ? parsedProfile.days : {},
       points: typeof parsedProfile.points === "number" ? parsedProfile.points : 0,
       streak: typeof parsedProfile.streak === "number" ? parsedProfile.streak : 0,
+      // Inherit yearStart from defaults if the stored profile doesn't have one
+      yearStart: parsedProfile.yearStart || defProfile.yearStart || null,
     };
   }
   return {
@@ -173,7 +221,17 @@ const mergeWithDefault = (parsed) => {
   };
 };
 
-const hasFirebase = () => typeof firebase !== "undefined" && firebase.database;
+const hasFirebase = () => typeof firebase !== "undefined" && firebase.database && window._firebaseReady;
+
+// Wait up to 5 seconds for Firebase to become ready. Used by loadData on boot so the very
+// first load can actually find the kids' progress, even if Firebase scripts are still loading.
+async function waitForFirebaseReady(maxMs = 5000) {
+  const start = Date.now();
+  while (!hasFirebase() && Date.now() - start < maxMs) {
+    await new Promise(r => setTimeout(r, 100));
+  }
+  return hasFirebase();
+}
 
 // Track the highest "days completed" count per profile we've ever seen.
 // This is the most important thing to protect - losing day records loses the kid's history.
@@ -219,6 +277,10 @@ async function loadData() {
   } catch {}
   if (local) updateHighWater(local);
 
+  // Wait briefly for Firebase scripts to finish loading (deferred). This matters on the
+  // Tesla browser where deferred scripts can finish well after the React mount.
+  await waitForFirebaseReady(5000);
+
   // Then try Firebase; prefer remote if present
   try {
     if (hasFirebase()) {
@@ -231,6 +293,8 @@ async function loadData() {
         try { localStorage.setItem(KEY, JSON.stringify(v)); } catch {}
         return merged;
       }
+    } else {
+      _firebaseLoadComplete = true; // local-only mode
     }
   } catch (e) { console.warn("Firebase load failed:", e); _firebaseLoadComplete = true; }
 
@@ -261,8 +325,60 @@ async function saveData(d) {
   try {
     if (hasFirebase()) {
       await firebase.database().ref(FB_PATH).set(d);
+      // Fire-and-forget daily snapshot (doesn't block, doesn't crash on failure)
+      writeDailySnapshot(d).catch(e => console.warn("Daily snapshot failed:", e));
     }
   } catch (e) { console.warn("Firebase save failed:", e); }
+}
+
+// ============== AUTOMATIC DAILY BACKUPS ==============
+// On every save, we also write a per-day snapshot to a separate Firebase path. Each day's
+// slot gets overwritten by later saves that same day, so the slot ends up holding the day's
+// final state. We keep the last 30 snapshots and prune older ones.
+const BACKUP_PATH = "families/" + FAMILY_CODE + "/english_backups";
+
+function todayLocalISO() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+async function writeDailySnapshot(d) {
+  if (!hasFirebase()) return;
+  const today = todayLocalISO();
+  await firebase.database().ref(BACKUP_PATH + "/" + today).set({
+    savedAt: new Date().toISOString(),
+    data: d,
+  });
+  // Prune old snapshots (keep last 30) - fire and forget
+  pruneOldSnapshots().catch(e => console.warn("Prune failed:", e));
+}
+
+async function pruneOldSnapshots() {
+  if (!hasFirebase()) return;
+  const snap = await firebase.database().ref(BACKUP_PATH).once("value");
+  const val = snap.val() || {};
+  const dates = Object.keys(val).sort(); // ISO sorts chronologically
+  if (dates.length <= 30) return;
+  const toDelete = dates.slice(0, dates.length - 30);
+  for (const date of toDelete) {
+    await firebase.database().ref(BACKUP_PATH + "/" + date).remove();
+  }
+}
+
+async function listBackups() {
+  if (!hasFirebase()) return [];
+  try {
+    const snap = await firebase.database().ref(BACKUP_PATH).once("value");
+    const val = snap.val() || {};
+    return Object.keys(val).sort().reverse().map(date => ({
+      date,
+      savedAt: val[date].savedAt,
+      data: val[date].data,
+    }));
+  } catch (e) {
+    console.warn("List backups failed:", e);
+    return [];
+  }
 }
 
 function subscribeData(callback) {
@@ -1222,12 +1338,64 @@ function generatePreschoolDay(rng, term) {
   ];
 }
 
+// ============================================================
+// Year-level auto-progression
+// Each profile has a "yearStart" date - the academic year (Sept-Aug) in which they
+// started Year 1, expressed as the calendar year of the September. So 2025 means
+// Year 1 was 2025/26.
+// Charlie: yearStart = 2025 (Year 1 in 2025/26 - the current academic year)
+// Freddie: yearStart = 2027 (Year 1 will be 2027/28 - he's preschool now, Reception in 2026/27)
+// Anyone without a yearStart falls back to the static profile.year for backwards compatibility.
+// ============================================================
+function getCurrentLevel(profile) {
+  if (!profile) return "year1";
+  if (profile.yearStart) {
+    const now = new Date();
+    const month = now.getMonth(); // 0=Jan
+    const yr = now.getFullYear();
+    // Current academic year starts in Sept (month 8). Before Sept, we're in the year that started last calendar year.
+    const currentAcademicYear = month >= 8 ? yr : yr - 1;
+    const offsetFromYear1 = currentAcademicYear - profile.yearStart;
+    if (offsetFromYear1 < -1) return "preschool"; // 2+ years before Year 1
+    if (offsetFromYear1 === -1) return "reception"; // year before Year 1
+    if (offsetFromYear1 === 0) return "year1";
+    if (offsetFromYear1 === 1) return "year2";
+    if (offsetFromYear1 === 2) return "year3";
+    if (offsetFromYear1 === 3) return "year4";
+    return "year" + offsetFromYear1;
+  }
+  // Legacy: use the static field
+  return profile.year || "year1";
+}
+
+// Map a level to a content tier - what curriculum bucket to actually use.
+// We have preschool and year1 content. Reception uses preschool, Year 2+ uses year1
+// (until we build out dedicated content).
+function getContentTier(level) {
+  if (level === "preschool" || level === "reception") return "preschool";
+  return "year1";
+}
+
+function getLevelLabel(level) {
+  return {
+    preschool: "Preschool",
+    reception: "Reception",
+    year1: "Year 1",
+    year2: "Year 2",
+    year3: "Year 3",
+    year4: "Year 4",
+    year5: "Year 5",
+    year6: "Year 6",
+  }[level] || "Year 1";
+}
+
 function generateDay(profile, dateISO) {
   const rng = seededRng(`${profile.id}-${dateISO}`);
   const term = getTerm(new Date(dateISO + "T00:00:00"));
-  return profile.year === "year1"
-    ? generateY1Day(rng, term)
-    : generatePreschoolDay(rng, term);
+  const tier = getContentTier(getCurrentLevel(profile));
+  return tier === "preschool"
+    ? generatePreschoolDay(rng, term)
+    : generateY1Day(rng, term);
 }
 
 /* ============================ UI: ROOT ============================ */
@@ -1273,7 +1441,7 @@ function PhonicsApp() {
         <ProfilePicker data={data} onPick={(id) => persist({ ...data, activeId: id })} />
       ) : (
         <>
-          <Header profile={activeProfile} onSwitch={() => persist({ ...data, activeId: null })} />
+          <Header data={data} profile={activeProfile} onSwitch={(id) => persist({ ...data, activeId: id })} />
           {view === "home" && <HomeView profile={activeProfile} data={data} setData={persist} onStart={() => setView("practice")} setView={setView} />}
           {view === "practice" && <PracticeView profile={activeProfile} data={data} setData={persist} onDone={() => setView("home")} />}
           {view === "results" && <ResultsView profile={activeProfile} onBack={() => setView("home")} />}
@@ -1287,21 +1455,53 @@ function PhonicsApp() {
 }
 
 /* ============================ HEADER ============================ */
-function Header({ profile, onSwitch }) {
-  const theme = THEMES[profile.theme];
+function Header({ data, profile, onSwitch }) {
+  const allProfiles = Object.values(data.profiles || {});
   return (
     <div style={S.header}>
-      <button onClick={onSwitch} style={S.headerBtn}>
-        <Users size={18} /> <span style={{ marginLeft: 6 }}>Switch</span>
-      </button>
-      <div style={S.headerTitle}>
-        <span style={{ fontSize: 22 }}>{theme.emoji}</span>
-        <span>{profile.name}'s English</span>
+      <div style={S.profileChips}>
+        {allProfiles.map(p => {
+          const isActive = p.id === profile.id;
+          const pTheme = THEMES[p.theme] || THEMES.monsters;
+          const yearLevel = getCurrentLevel(p);
+          const yearShort = {
+            preschool: "Preschool",
+            reception: "Reception",
+            year1: "Year 1",
+            year2: "Year 2",
+            year3: "Year 3",
+            year4: "Year 4",
+            year5: "Year 5",
+            year6: "Year 6",
+          }[yearLevel] || "Year 1";
+          return (
+            <button
+              key={p.id}
+              onClick={() => !isActive && onSwitch(p.id)}
+              style={{
+                ...S.profileChip,
+                ...(isActive ? S.profileChipActive : {}),
+              }}
+              aria-label={`Switch to ${p.name}, ${yearShort}`}
+            >
+              <span style={S.profileChipEmoji}>{pTheme.emoji}</span>
+              <div style={S.profileChipText}>
+                <div style={S.profileChipName}>{p.name}</div>
+                <div style={S.profileChipYear}>{yearShort}</div>
+              </div>
+            </button>
+          );
+        })}
       </div>
       <div style={S.headerStats}>
-        <Flame size={14} color="#E07856" /> <span style={{ marginLeft: 3 }}>{profile.streak}</span>
-        <span style={{ marginLeft: 10 }}><Star size={14} color="#D4A04A" /></span>
-        <span style={{ marginLeft: 3 }}>{profile.points}</span>
+        <div style={S.headerStat}>
+          <Flame size={14} color="#E07856" />
+          <span style={{ marginLeft: 3 }}>{profile.streak}</span>
+        </div>
+        <div style={S.headerStat}>
+          <Star size={14} color="#D4A04A" />
+          <span style={{ marginLeft: 3 }}>{profile.points}</span>
+        </div>
       </div>
     </div>
   );
@@ -1321,7 +1521,7 @@ function ProfilePicker({ data, onPick }) {
               <button key={p.id} onClick={() => onPick(p.id)} style={S.pickerCard}>
                 <div style={{ fontSize: 56, marginBottom: 8 }}>{theme.emoji}</div>
                 <div style={S.pickerName}>{p.name}</div>
-                <div style={S.pickerYear}>{p.year === "year1" ? "Year 1" : "Preschool"}</div>
+                <div style={S.pickerYear}>{getLevelLabel(getCurrentLevel(p))}</div>
                 <div style={S.pickerPoints}>
                   <Star size={12} color="#D4A04A" /> <span style={{ marginLeft: 4 }}>{p.points}</span>
                   <span style={{ marginLeft: 10 }}><Flame size={12} color="#E07856" /></span>
@@ -1357,7 +1557,7 @@ function HomeView({ profile, data, setData, onStart, setView }) {
       </div>
 
       <div style={S.termBadge}>
-        <BookOpen size={14} /> <span style={{ marginLeft: 6 }}>{profile.year === "year1" ? "Year 1" : "Preschool"} · {termLabel}</span>
+        <BookOpen size={14} /> <span style={{ marginLeft: 6 }}>{getLevelLabel(getCurrentLevel(profile))} · {termLabel}</span>
       </div>
 
       {todayDone ? (
@@ -1396,7 +1596,7 @@ function HomeView({ profile, data, setData, onStart, setView }) {
 function PracticeView({ profile, data, setData, onDone }) {
   const today = todayISO();
   const [extraSeed, setExtraSeed] = useState(0);
-  const questions = useMemo(() => generateDay(profile, today + (extraSeed ? "-x" + extraSeed : "")), [profile.id, profile.year, today, extraSeed]);
+  const questions = useMemo(() => generateDay(profile, today + (extraSeed ? "-x" + extraSeed : "")), [profile.id, profile.year, profile.yearStart, today, extraSeed]);
   const [idx, setIdx] = useState(0);
   const [answers, setAnswers] = useState({});
   const [typed, setTyped] = useState("");
@@ -2199,6 +2399,79 @@ function CollectionView({ profile, data, setData, onBack }) {
 }
 
 /* ============================ SETTINGS ============================ */
+function CloudBackupsCard({ data, setData }) {
+  const [backups, setBackups] = useState(null);
+  const [loading, setLoading] = useState(false);
+
+  const refresh = async () => {
+    setLoading(true);
+    try {
+      const list = await listBackups();
+      setBackups(list);
+    } catch (e) {
+      console.warn("Backup list failed:", e);
+      setBackups([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { refresh(); }, []);
+
+  const restoreFrom = (backup) => {
+    const dateStr = new Date(backup.savedAt).toLocaleString("en-GB", {
+      day: "numeric", month: "short", year: "numeric",
+      hour: "2-digit", minute: "2-digit",
+    });
+    if (!window.confirm(`Restore data from backup taken ${dateStr}? Current data will be replaced.`)) return;
+    allowResetOnce();
+    setData(mergeWithDefault(backup.data));
+    alert("Restored. The app will refresh to show the restored data.");
+  };
+
+  return (
+    <>
+      <div style={S.sectionTitle}>Cloud backups</div>
+      <div style={{ ...S.insightCard, marginTop: 8 }}>
+        <div style={{ fontSize: 12, color: "#7a8b80", marginBottom: 10, lineHeight: 1.4 }}>
+          A snapshot is saved automatically each day. Up to 30 days are kept. Tap a date to restore.
+        </div>
+        {loading && <div style={{ fontSize: 13, color: "#5a6b5f" }}>Loading backups...</div>}
+        {!loading && backups && backups.length === 0 && (
+          <div style={{ fontSize: 13, color: "#5a6b5f", fontStyle: "italic" }}>
+            No cloud backups yet. The first one is created automatically when your next session saves.
+          </div>
+        )}
+        {!loading && backups && backups.length > 0 && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 8 }}>
+            {backups.map(b => {
+              // Sum up total points and days across all profiles for a quick preview
+              const profiles = (b.data && b.data.profiles) || {};
+              const summary = Object.values(profiles).map(p => {
+                const pts = p.points || 0;
+                const days = Object.keys(p.days || {}).length;
+                return `${p.name || p.id}: ${pts} pts, ${days} days`;
+              }).join(" · ");
+              const friendlyDate = new Date(b.savedAt).toLocaleDateString("en-GB", {
+                weekday: "short", day: "numeric", month: "short",
+              });
+              return (
+                <button key={b.date} onClick={() => restoreFrom(b)} style={S.backupRow}>
+                  <div style={{ fontWeight: 700, fontSize: 13, color: "#143232" }}>{friendlyDate}</div>
+                  <div style={{ fontSize: 11, color: "#5a6b5f", marginTop: 2 }}>{summary || "Empty backup"}</div>
+                </button>
+              );
+            })}
+          </div>
+        )}
+        <button onClick={refresh} style={{ ...S.backupBtn, marginTop: 10, background: "#E5DDC9", color: "#143232" }}>
+          🔄 Refresh list
+        </button>
+      </div>
+    </>
+  );
+}
+
 function SettingsView({ profile, data, setData, onBack }) {
   const [britishVoices, setBritishVoices] = useState([]);
 
@@ -2238,7 +2511,7 @@ function SettingsView({ profile, data, setData, onBack }) {
       ...data,
       profiles: {
         ...data.profiles,
-        [profile.id]: newProfile(profile.id, profile.name, profile.year, profile.theme),
+        [profile.id]: newProfile(profile.id, profile.name, profile.year, profile.theme, profile.yearStart),
       },
     };
     setData(next);
@@ -2259,16 +2532,19 @@ function SettingsView({ profile, data, setData, onBack }) {
         ))}
       </div>
 
-      <div style={S.sectionTitle}>Year group</div>
-      <div style={S.themeRow}>
-        <button onClick={() => setYear("preschool")} style={{ ...S.themeBtn, ...(profile.year === "preschool" ? S.themeBtnOn : {}) }}>
-          <div style={{ fontWeight: 600 }}>Preschool</div>
-          <div style={{ fontSize: 11, color: "#5a6b5f", marginTop: 2 }}>Letters & sounds</div>
-        </button>
-        <button onClick={() => setYear("year1")} style={{ ...S.themeBtn, ...(profile.year === "year1" ? S.themeBtnOn : {}) }}>
-          <div style={{ fontWeight: 600 }}>Year 1</div>
-          <div style={{ fontSize: 11, color: "#5a6b5f", marginTop: 2 }}>Phonics & SPaG</div>
-        </button>
+      <div style={S.sectionTitle}>Year group (automatic)</div>
+      <div style={{ ...S.insightCard, marginTop: 8 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <BookOpen size={20} color="#143232" />
+          <div style={{ flex: 1 }}>
+            <div style={{ fontWeight: 700, fontSize: 16, color: "#143232" }}>{getLevelLabel(getCurrentLevel(profile))}</div>
+            <div style={{ fontSize: 12, color: "#5a6b5f", marginTop: 2 }}>
+              {profile.yearStart
+                ? `Year 1 academic year ${profile.yearStart}/${(profile.yearStart + 1).toString().slice(2)}. Auto-progresses each September.`
+                : "No academic cohort set. Auto-progression disabled."}
+            </div>
+          </div>
+        </div>
       </div>
 
       <div style={S.sectionTitle}>Reading voice</div>
@@ -2349,6 +2625,8 @@ function SettingsView({ profile, data, setData, onBack }) {
         </div>
       </div>
 
+      <CloudBackupsCard data={data} setData={setData} />
+
       <div style={S.sectionTitle}>Term</div>
       <div style={{ ...S.insightCard, marginTop: 8 }}>
         <div style={{ fontSize: 14, color: "#5a6b5f" }}>The questions get harder through the year:</div>
@@ -2403,15 +2681,37 @@ const S = {
   shell: { minHeight: "100vh", background: "#F5EFE6", fontFamily: FONT, color: "#143232", paddingBottom: 70 },
   header: {
     display: "flex", alignItems: "center", justifyContent: "space-between",
-    padding: "14px 16px", background: "#143232", color: "#FAFAFA",
-    position: "sticky", top: 0, zIndex: 10,
+    padding: "10px 12px", background: "#143232", color: "#FAFAFA",
+    position: "sticky", top: 0, zIndex: 10, gap: 8,
   },
-  headerBtn: {
-    background: "rgba(255,255,255,0.1)", color: "#FAFAFA", padding: "6px 10px",
-    borderRadius: 8, display: "flex", alignItems: "center", fontSize: 12, fontWeight: 600,
+  profileChips: {
+    display: "flex", gap: 6, flex: 1, minWidth: 0,
   },
-  headerTitle: { fontWeight: 700, fontSize: 15, display: "flex", alignItems: "center", gap: 8 },
-  headerStats: { display: "flex", alignItems: "center", fontSize: 13, fontWeight: 700, background: "rgba(255,255,255,0.08)", padding: "6px 10px", borderRadius: 8 },
+  profileChip: {
+    background: "rgba(255,255,255,0.06)",
+    color: "rgba(255,255,255,0.5)",
+    border: "1.5px solid rgba(255,255,255,0.1)",
+    padding: "7px 11px",
+    borderRadius: 12,
+    display: "inline-flex", alignItems: "center", gap: 7,
+    cursor: "pointer",
+    whiteSpace: "nowrap",
+    transition: "background 0.15s, color 0.15s, border-color 0.15s, transform 0.1s",
+    fontFamily: "inherit",
+  },
+  profileChipActive: {
+    background: "#FAFAFA",
+    color: "#143232",
+    borderColor: "#FAFAFA",
+    boxShadow: "0 2px 6px rgba(0,0,0,0.2)",
+    cursor: "default",
+  },
+  profileChipEmoji: { fontSize: 20, lineHeight: 1, flexShrink: 0 },
+  profileChipText: { display: "flex", flexDirection: "column", alignItems: "flex-start", lineHeight: 1.15 },
+  profileChipName: { fontSize: 13, fontWeight: 700 },
+  profileChipYear: { fontSize: 10, fontWeight: 500, opacity: 0.75 },
+  headerStats: { display: "flex", alignItems: "center", gap: 6, flexShrink: 0 },
+  headerStat: { display: "flex", alignItems: "center", fontSize: 12, fontWeight: 700, background: "rgba(255,255,255,0.08)", padding: "5px 8px", borderRadius: 8 },
 
   /* Body */
   body: { padding: "16px 18px 24px", maxWidth: 480, margin: "0 auto" },
@@ -2608,6 +2908,16 @@ const S = {
     padding: "10px 14px", borderRadius: 10,
     border: "none", fontSize: 13, fontWeight: 600,
     display: "inline-flex", alignItems: "center", gap: 4,
+  },
+  backupRow: {
+    background: "#FAFAFA",
+    border: "1px solid #E5DDC9",
+    borderRadius: 10,
+    padding: "10px 12px",
+    textAlign: "left",
+    cursor: "pointer",
+    display: "block",
+    width: "100%",
   },
 
   /* Bottom nav */
@@ -6750,17 +7060,15 @@ function Picker({ onPick }) {
   );
 }
 
-/* ============================ SWITCH BUTTON ============================ */
+/* ============================ APPS BUTTON ============================ */
 function SwitchButton({ onClick, app }) {
-  // Place top-left, above app chrome
+  // Top-left button that opens the apps picker (Phonics vs Reading). Renamed
+  // from "Switch" because it was being confused with kid-profile switching.
+  const otherApp = app === "phonics" ? "Reading" : "Phonics";
   return (
-    <button onClick={onClick} style={{
-      ...SS.switchBtn,
-      // Reading app has cream bg, phonics has bisque bg - blend with both
-      background: app === "reading" ? "rgba(20, 50, 50, 0.92)" : "rgba(20, 50, 50, 0.92)",
-    }}>
-      <ShellHome size={16} style={{ marginRight: 6 }} />
-      <span style={{ fontSize: 13, fontWeight: 600 }}>Switch</span>
+    <button onClick={onClick} style={SS.switchBtn}>
+      <ShellBook size={16} style={{ marginRight: 6 }} />
+      <span style={{ fontSize: 13, fontWeight: 600 }}>Go to {otherApp}</span>
     </button>
   );
 }
@@ -6794,7 +7102,7 @@ function Shell() {
 
   return (
     <>
-      <SwitchButton onClick={() => setView("picker")} app={view} />
+      <SwitchButton onClick={() => setView(view === "phonics" ? "reading" : "phonics")} app={view} />
       {view === "phonics" ? <PhonicsAppCmp /> : <ReadingAppCmp />}
     </>
   );
@@ -6901,20 +7209,31 @@ const SS = {
   },
 
   switchBtn: {
-    position: "fixed", top: 12, left: 12, zIndex: 9999,
+    position: "fixed", bottom: 16, right: 16, zIndex: 9999,
+    background: "rgba(20, 50, 50, 0.85)",
     color: "#FAFAFA",
-    padding: "8px 14px", borderRadius: 999,
-    border: "none",
+    padding: "8px 12px", borderRadius: 999,
+    border: "1px solid rgba(255,255,255,0.15)",
     display: "inline-flex", alignItems: "center",
-    boxShadow: "0 4px 12px rgba(0, 0, 0, 0.2)",
+    boxShadow: "0 4px 12px rgba(0, 0, 0, 0.18)",
     cursor: "pointer",
+    fontSize: 12,
     backdropFilter: "blur(8px)",
     WebkitBackdropFilter: "blur(8px)",
   },
 };
 
-const _shellRoot = ReactDOM.createRoot(document.getElementById("root"));
-_shellRoot.render(<Shell />);
+try {
+  const _shellRoot = ReactDOM.createRoot(document.getElementById("root"));
+  _shellRoot.render(<Shell />);
+} catch (e) {
+  // Surface the real error rather than Safari's masked "Script error"
+  if (typeof showBootError === "function") {
+    showBootError("Render failed", (e && e.stack) || (e && e.message) || String(e));
+  } else {
+    document.getElementById("root").innerHTML = "<pre style='padding:20px;font-family:monospace;color:#a23030;'>" + ((e && e.stack) || String(e)) + "</pre>";
+  }
+}
 
   </script>
 </body>
