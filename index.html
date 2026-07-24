@@ -6438,8 +6438,8 @@ function Reader({ child, story, loading, loadMsg, error, onBack, onProgressOpen,
         />
       )}
 
-      {/* Finish state */}
-      {isLast && questionAnswered && (
+      {/* Finish state - fires whenever the last page is done: either the question is answered, or there was no question to answer */}
+      {isLast && (questionAnswered || !hasQuestion) && (
         <FinishOverlay
           child={child}
           band={band}
