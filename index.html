@@ -1562,6 +1562,14 @@ function Header({ data, profile, onSwitch }) {
           <Star size={14} color="#D4A04A" />
           <span style={{ marginLeft: 3 }}>{profile.points}</span>
         </div>
+        <button
+          onClick={() => window._switchApp && window._switchApp()}
+          style={S.headerAppSwitch}
+          aria-label="Go to Reading"
+          title="Go to Reading"
+        >
+          <BookOpen size={16} color="#FAFAFA" />
+        </button>
       </div>
     </div>
   );
@@ -2827,6 +2835,14 @@ const S = {
   profileChipYear: { fontSize: 10, fontWeight: 500, opacity: 0.75 },
   headerStats: { display: "flex", alignItems: "center", gap: 6, flexShrink: 0 },
   headerStat: { display: "flex", alignItems: "center", fontSize: 12, fontWeight: 700, background: "rgba(255,255,255,0.08)", padding: "5px 8px", borderRadius: 8 },
+  headerAppSwitch: {
+    display: "flex", alignItems: "center", justifyContent: "center",
+    width: 32, height: 32, borderRadius: 8,
+    background: "rgba(255,255,255,0.12)",
+    border: "1px solid rgba(255,255,255,0.18)",
+    cursor: "pointer",
+    padding: 0, marginLeft: 2,
+  },
 
   /* Body */
   body: { padding: "16px 18px 24px", maxWidth: 480, margin: "0 auto" },
@@ -6051,6 +6067,14 @@ function Home({ profiles, hasApiKey, syncMode, onOpen, onProgress, onSettings })
         </div>
 
         <div style={S.decoStack}>
+          <button
+            onClick={() => typeof window !== "undefined" && window._switchApp && window._switchApp()}
+            style={{ ...S.settingsBtn, marginBottom: 6 }}
+            aria-label="Go to Phonics & Spelling"
+            title="Go to Phonics & Spelling"
+          >
+            <Sparkles size={18}/>
+          </button>
           <button onClick={onSettings} style={S.settingsBtn} aria-label="Settings">
             <Cog size={18}/>
           </button>
@@ -7176,18 +7200,6 @@ function Picker({ onPick }) {
 }
 
 /* ============================ APPS BUTTON ============================ */
-function SwitchButton({ onClick, app }) {
-  // Top-left button that opens the apps picker (Phonics vs Reading). Renamed
-  // from "Switch" because it was being confused with kid-profile switching.
-  const otherApp = app === "phonics" ? "Reading" : "Phonics";
-  return (
-    <button onClick={onClick} style={SS.switchBtn}>
-      <ShellBook size={16} style={{ marginRight: 6 }} />
-      <span style={{ fontSize: 13, fontWeight: 600 }}>Go to {otherApp}</span>
-    </button>
-  );
-}
-
 /* ============================ SHELL ============================ */
 function Shell() {
   const [view, setView] = useState("welcome"); // welcome | picker | phonics | reading
@@ -7208,6 +7220,15 @@ function Shell() {
     } catch {}
   }, [view]);
 
+  // Expose the app switcher globally so the phonics/reading Headers can call it
+  // (via a small icon button in their top bar). This replaces the floating button
+  // that used to overlap the bottom navigation.
+  useEffect(() => {
+    window._currentApp = view;
+    window._switchApp = () => setView(view === "phonics" ? "reading" : "phonics");
+    window._goHomeApps = () => setView("picker");
+  }, [view]);
+
   if (view === "welcome") {
     return <Welcome onContinue={() => setView("picker")} />;
   }
@@ -7215,12 +7236,7 @@ function Shell() {
     return <Picker onPick={(app) => setView(app)} />;
   }
 
-  return (
-    <>
-      <SwitchButton onClick={() => setView(view === "phonics" ? "reading" : "phonics")} app={view} />
-      {view === "phonics" ? <PhonicsAppCmp /> : <ReadingAppCmp />}
-    </>
-  );
+  return view === "phonics" ? <PhonicsAppCmp /> : <ReadingAppCmp />;
 }
 
 /* ============================ SHELL STYLES ============================ */
@@ -7321,20 +7337,6 @@ const SS = {
   },
   pickerCardDesc: {
     fontSize: 13, color: "#5C6F66", lineHeight: 1.4,
-  },
-
-  switchBtn: {
-    position: "fixed", bottom: 16, right: 16, zIndex: 9999,
-    background: "rgba(20, 50, 50, 0.85)",
-    color: "#FAFAFA",
-    padding: "8px 12px", borderRadius: 999,
-    border: "1px solid rgba(255,255,255,0.15)",
-    display: "inline-flex", alignItems: "center",
-    boxShadow: "0 4px 12px rgba(0, 0, 0, 0.18)",
-    cursor: "pointer",
-    fontSize: 12,
-    backdropFilter: "blur(8px)",
-    WebkitBackdropFilter: "blur(8px)",
   },
 };
 
