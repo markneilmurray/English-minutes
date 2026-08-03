@@ -51,10 +51,17 @@
   <script src="https://unpkg.com/@babel/standalone@7.24.7/babel.min.js"></script>
   <script defer src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
   <script defer src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+  <script defer src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 
   <script>
     // Family code is always defined so the app boots even if Firebase fails to load
     var FAMILY_CODE = "murray-7f3k9q2x-home";
+
+    // Only these Google accounts may read/write this family's cloud data (see Maths Minutes:
+    // a bare family-code string in client JS is not real access control - anyone who views
+    // source on the deployed page can read/write it. Google Sign-In + matching Realtime
+    // Database rules close that hole here too).
+    var ALLOWED_EMAILS = ["markneilmurray@gmail.com", "hannahemurray92@gmail.com"];
 
     // Firebase config - shared with Daily Maths Minutes app, isolated paths per sub-app
     var FIREBASE_CONFIG = {
@@ -72,6 +79,27 @@
     // sometimes runs main scripts before deferred ones finish - this handles that gracefully.
     window._firebaseReady = false;
     window._firebaseInitAttempts = 0;
+    // Auth state: null while we haven't heard from Firebase yet, then either a signed-in
+    // allowed user, or "denied" (signed in but not an allowed email), or "signed-out".
+    window._authChecked = false;
+    window._authUser = null;
+    window._authAllowed = false;
+    window._authStatus = { state: "checking", detail: "" };
+    function _setAuthStatus(state, detail) {
+      window._authStatus = { state: state, detail: detail || "" };
+      window.dispatchEvent(new Event("english-minutes-auth-changed"));
+    }
+    window._signInWithGoogle = function () {
+      if (typeof firebase === "undefined" || !firebase.auth) return;
+      _setAuthStatus("checking", "Signing in...");
+      firebase.auth().signInWithPopup(new firebase.auth.GoogleAuthProvider()).catch(function (e) {
+        _setAuthStatus("error", (e && e.message) || "Sign-in failed");
+      });
+    };
+    window._signOutOfGoogle = function () {
+      if (typeof firebase === "undefined" || !firebase.auth) return;
+      firebase.auth().signOut();
+    };
     (function waitForFirebase() {
       window._firebaseInitAttempts++;
       if (typeof firebase !== "undefined" && firebase.initializeApp) {
@@ -79,8 +107,20 @@
           firebase.initializeApp(FIREBASE_CONFIG);
           window._firebaseReady = true;
           console.log("[boot] Firebase ready after " + window._firebaseInitAttempts + " attempt(s)");
+          firebase.auth().onAuthStateChanged(function (u) {
+            window._authChecked = true;
+            window._authUser = u;
+            if (u && ALLOWED_EMAILS.indexOf(u.email) >= 0) {
+              window._authAllowed = true;
+              _setAuthStatus("signed-in", u.email);
+            } else {
+              window._authAllowed = false;
+              _setAuthStatus(u ? "denied" : "signed-out", u ? u.email : "");
+            }
+          });
         } catch (e) {
           console.error("Firebase init error:", e);
+          window._authChecked = true; // don't hang the UI waiting on auth that will never resolve
         }
         return;
       }
@@ -88,6 +128,7 @@
         setTimeout(waitForFirebase, 100); // 5 seconds max wait
       } else {
         console.warn("Firebase scripts did not load after 5s - running in local-only mode");
+        window._authChecked = true;
       }
     })();
 
@@ -222,6 +263,9 @@ const mergeWithDefault = (parsed) => {
 };
 
 const hasFirebase = () => typeof firebase !== "undefined" && firebase.database && window._firebaseReady;
+// Gate actual reads/writes on being signed in as an allowed family Google account, not just
+// on the family code being known - the code alone isn't real access control (see Maths Minutes).
+const canSyncFirebase = () => hasFirebase() && window._authAllowed === true;
 
 // Wait up to 5 seconds for Firebase to become ready. Used by loadData on boot so the very
 // first load can actually find the kids' progress, even if Firebase scripts are still loading.
@@ -229,6 +273,13 @@ async function waitForFirebaseReady(maxMs = 5000) {
   const start = Date.now();
   while (!hasFirebase() && Date.now() - start < maxMs) {
     await new Promise(r => setTimeout(r, 100));
+  }
+  // Auth state resolves fast once Firebase itself is ready (it's just reading a cached
+  // session), so give it a short bounded extra wait rather than losing sync for a returning
+  // signed-in user on the very first load of the page.
+  const authStart = Date.now();
+  while (!window._authChecked && Date.now() - authStart < 2000) {
+    await new Promise(r => setTimeout(r, 50));
   }
   return hasFirebase();
 }
@@ -283,7 +334,7 @@ async function loadData() {
 
   // Then try Firebase; prefer remote if present
   try {
-    if (hasFirebase()) {
+    if (canSyncFirebase()) {
       const snap = await firebase.database().ref(FB_PATH).once("value");
       const v = snap.val();
       _firebaseLoadComplete = true;
@@ -323,7 +374,7 @@ async function saveData(d) {
   } catch {}
   // Sync to Firebase
   try {
-    if (hasFirebase()) {
+    if (canSyncFirebase()) {
       await firebase.database().ref(FB_PATH).set(d);
       // Fire-and-forget daily snapshot (doesn't block, doesn't crash on failure)
       writeDailySnapshot(d).catch(e => console.warn("Daily snapshot failed:", e));
@@ -343,7 +394,7 @@ function todayLocalISO() {
 }
 
 async function writeDailySnapshot(d) {
-  if (!hasFirebase()) return;
+  if (!canSyncFirebase()) return;
   const today = todayLocalISO();
   await firebase.database().ref(BACKUP_PATH + "/" + today).set({
     savedAt: new Date().toISOString(),
@@ -354,7 +405,7 @@ async function writeDailySnapshot(d) {
 }
 
 async function pruneOldSnapshots() {
-  if (!hasFirebase()) return;
+  if (!canSyncFirebase()) return;
   const snap = await firebase.database().ref(BACKUP_PATH).once("value");
   const val = snap.val() || {};
   const dates = Object.keys(val).sort(); // ISO sorts chronologically
@@ -366,7 +417,7 @@ async function pruneOldSnapshots() {
 }
 
 async function listBackups() {
-  if (!hasFirebase()) return [];
+  if (!canSyncFirebase()) return [];
   try {
     const snap = await firebase.database().ref(BACKUP_PATH).once("value");
     const val = snap.val() || {};
@@ -382,7 +433,7 @@ async function listBackups() {
 }
 
 function subscribeData(callback) {
-  if (!hasFirebase()) return () => {};
+  if (!canSyncFirebase()) return () => {};
   const ref = firebase.database().ref(FB_PATH);
   const handler = (snap) => {
     const v = snap.val();
@@ -1405,6 +1456,17 @@ function PhonicsApp() {
   const [ready, setReady] = useState(false);
   const [lastSyncedAt, setLastSyncedAt] = useState(null);
   const [fbConnected, setFbConnected] = useState(false);
+  const [authAllowed, setAuthAllowed] = useState(!!window._authAllowed);
+
+  // Re-run the data load/subscribe effect below whenever sign-in state changes, so signing
+  // in or out actually (re)connects to (or disconnects from) Firebase rather than only taking
+  // effect on the next full page reload.
+  useEffect(() => {
+    const onAuthChange = () => setAuthAllowed(!!window._authAllowed);
+    onAuthChange();
+    window.addEventListener("english-minutes-auth-changed", onAuthChange);
+    return () => window.removeEventListener("english-minutes-auth-changed", onAuthChange);
+  }, []);
 
   useEffect(() => {
     let mounted = true;
@@ -1426,7 +1488,7 @@ function PhonicsApp() {
     // suspends background apps and the Firebase socket can go stale - this guarantees
     // we always show the latest data immediately when Mark or Hannah opens the app.
     const refreshNow = async () => {
-      if (!hasFirebase()) return;
+      if (!canSyncFirebase()) return;
       try {
         const snap = await firebase.database().ref(FB_PATH).once("value");
         const v = snap.val();
@@ -1452,7 +1514,7 @@ function PhonicsApp() {
     // Track Firebase's live connection state (true = receiving updates from server)
     let connRef = null;
     let connHandler = null;
-    if (hasFirebase()) {
+    if (canSyncFirebase()) {
       connRef = firebase.database().ref(".info/connected");
       connHandler = connRef.on("value", (snap) => {
         if (mounted) {
@@ -1474,7 +1536,7 @@ function PhonicsApp() {
       window.removeEventListener("pageshow", refreshNow);
       if (connRef && connHandler) connRef.off("value", connHandler);
     };
-  }, []);
+  }, [authAllowed]);
 
   // Sync user-selected voice name with the speech module
   useEffect(() => {
@@ -1506,7 +1568,7 @@ function PhonicsApp() {
           {view === "practice" && <PracticeView profile={activeProfile} data={data} setData={persist} onDone={() => setView("home")} />}
           {view === "results" && <ResultsView profile={activeProfile} onBack={() => setView("home")} />}
           {view === "collection" && <CharacterBuilderView profile={activeProfile} data={data} setData={persist} onBack={() => setView("home")} />}
-          {view === "settings" && <SettingsView profile={activeProfile} data={data} setData={persist} onBack={() => setView("home")} />}
+          {view === "settings" && <PhonicsSettingsView profile={activeProfile} data={data} setData={persist} onBack={() => setView("home")} />}
           {view !== "practice" && <BottomNav view={view} setView={setView} />}
         </>
       )}
@@ -2467,6 +2529,54 @@ function CollectionView({ profile, data, setData, onBack }) {
 }
 
 /* ============================ SETTINGS ============================ */
+function useAuthStatus() {
+  const [status, setStatus] = useState(window._authStatus || { state: "checking" });
+  useEffect(() => {
+    const onChange = () => setStatus({ ...window._authStatus });
+    onChange();
+    window.addEventListener("english-minutes-auth-changed", onChange);
+    return () => window.removeEventListener("english-minutes-auth-changed", onChange);
+  }, []);
+  return status;
+}
+
+function GoogleSignInCard() {
+  const status = useAuthStatus();
+  return (
+    <div style={{ ...S.insightCard, marginTop: 8 }}>
+      <div style={{ fontSize: 14, fontWeight: 700, color: "#143232", marginBottom: 6 }}>
+        <Lock size={14} /> <span style={{ marginLeft: 6 }}>Family sign-in</span>
+      </div>
+      {status.state === "signed-in" ? (
+        <>
+          <div style={{ fontSize: 12, color: "#5a6b5f", marginBottom: 10, lineHeight: 1.4 }}>
+            Signed in as <strong>{status.detail}</strong>. Progress syncs across devices for this account.
+          </div>
+          <button onClick={() => window._signOutOfGoogle()} style={{ ...S.backupBtn, background: "#264653" }}>Sign out</button>
+        </>
+      ) : status.state === "denied" ? (
+        <>
+          <div style={{ fontSize: 12, color: "#9b3a1f", marginBottom: 10, lineHeight: 1.4 }}>
+            Signed in as <strong>{status.detail}</strong>, but this Google account isn't one of the family accounts allowed to sync this data.
+          </div>
+          <button onClick={() => window._signOutOfGoogle()} style={{ ...S.backupBtn, background: "#264653" }}>Sign out</button>
+        </>
+      ) : (
+        <>
+          <div style={{ fontSize: 12, color: status.state === "error" ? "#9b3a1f" : "#5a6b5f", marginBottom: 10, lineHeight: 1.4 }}>
+            {status.state === "checking"
+              ? "Checking sign-in..."
+              : status.state === "error"
+              ? `Sign-in failed: ${status.detail}`
+              : "Sign in with a family Google account to sync progress across devices."}
+          </div>
+          <button onClick={() => window._signInWithGoogle()} style={S.backupBtn}>Sign in with Google</button>
+        </>
+      )}
+    </div>
+  );
+}
+
 function SyncStatusCard({ data }) {
   const [tick, setTick] = useState(0);
   const [syncing, setSyncing] = useState(false);
@@ -2597,7 +2707,7 @@ function CloudBackupsCard({ data, setData }) {
   );
 }
 
-function SettingsView({ profile, data, setData, onBack }) {
+function PhonicsSettingsView({ profile, data, setData, onBack }) {
   const [britishVoices, setBritishVoices] = useState([]);
 
   useEffect(() => {
@@ -2699,6 +2809,7 @@ function SettingsView({ profile, data, setData, onBack }) {
       </div>
 
       <div style={S.sectionTitle}>Backup & sync</div>
+      <GoogleSignInCard />
       <SyncStatusCard data={data} />
       <div style={{ ...S.insightCard, marginTop: 8 }}>
         <div style={{ fontSize: 12, color: "#7a8b80", marginBottom: 12, lineHeight: 1.4 }}>
@@ -3106,7 +3217,10 @@ const X = (p) => (<_IconBase {...p}><path d="M18 6 6 18"/><path d="m6 6 12 12"/>
 /* ============================ STORAGE ============================ */
 // Cross-device storage: Firebase Realtime Database (primary) with localStorage fallback.
 // FIREBASE_CONFIG and FAMILY_CODE are defined in the HTML scaffold.
-const HAS_FB = typeof firebase !== "undefined" && typeof FAMILY_CODE !== "undefined";
+// A function (not a one-off const) so it reflects live sign-in state - gated on being signed
+// in as an allowed family Google account, not just on the family code being known (the code
+// alone isn't real access control; see Maths Minutes).
+const hasFB = () => typeof firebase !== "undefined" && typeof FAMILY_CODE !== "undefined" && window._authAllowed === true;
 const HAS_LS = typeof localStorage !== "undefined";
 const MEM = {};
 const PROFILES_KEY = "reading_app_profiles_v1";
@@ -3116,13 +3230,13 @@ const storyKey = (childId, week) => `reading_app_story_${childId}_${week}`;
 const progressKey = (childId, week) => `reading_app_progress_${childId}_${week}`;
 
 function fbRef(key) {
-  if (!HAS_FB) return null;
+  if (!hasFB()) return null;
   return firebase.database().ref(`families/${FAMILY_CODE}/reading/${key}`);
 }
 
 async function loadKey(key, fallback) {
   // Try Firebase first
-  if (HAS_FB) {
+  if (hasFB()) {
     try {
       const snap = await fbRef(key).get();
       if (snap.exists()) {
@@ -3153,7 +3267,7 @@ async function saveKey(key, value) {
   }
   MEM[key] = value;
   // Then fan out to Firebase (best effort)
-  if (HAS_FB) {
+  if (hasFB()) {
     try { await fbRef(key).set(JSON.stringify(value)); } catch {}
   }
 }
@@ -5876,9 +5990,20 @@ function ReadingApp() {
   const [error, setError] = useState(null);
   const [apiKey, setApiKey] = useState("");
   const [model, setModel] = useState("claude-sonnet-4-5");
-  const [syncMode, setSyncMode] = useState(HAS_FB ? "synced" : "local");
+  const [syncMode, setSyncMode] = useState(hasFB() ? "synced" : "local");
+  const [authAllowed, setAuthAllowed] = useState(!!window._authAllowed);
+
+  // Track sign-in state so we can re-read from Firebase (and reflect sync status) as soon as
+  // someone signs in, without needing a full page reload.
+  useEffect(() => {
+    const onAuthChange = () => setAuthAllowed(!!window._authAllowed);
+    onAuthChange();
+    window.addEventListener("english-minutes-auth-changed", onAuthChange);
+    return () => window.removeEventListener("english-minutes-auth-changed", onAuthChange);
+  }, []);
 
   useEffect(() => {
+    setSyncMode(hasFB() ? "synced" : "local");
     (async () => {
       const p = await loadKey(PROFILES_KEY, DEFAULT_PROFILES);
       setProfiles(p);
@@ -5891,7 +6016,7 @@ function ReadingApp() {
     if (typeof window !== "undefined" && window.speechSynthesis) {
       window.speechSynthesis.getVoices();
     }
-  }, []);
+  }, [authAllowed]);
 
   const saveApiKey = useCallback(async (k) => {
     setApiKey(k);
@@ -5986,7 +6111,7 @@ function ReadingApp() {
       )}
 
       {view === "settings" && (
-        <SettingsView
+        <ReadingSettingsView
           apiKey={apiKey}
           model={model}
           syncMode={syncMode}
@@ -6160,7 +6285,52 @@ function DecoBook({ colour }) {
 }
 
 /* ============================ SETTINGS ============================ */
-function SettingsView({ apiKey, model, syncMode, onSaveKey, onSaveModel, onBack }) {
+function useAuthStatus() {
+  const [status, setStatus] = useState(window._authStatus || { state: "checking" });
+  useEffect(() => {
+    const onChange = () => setStatus({ ...window._authStatus });
+    onChange();
+    window.addEventListener("english-minutes-auth-changed", onChange);
+    return () => window.removeEventListener("english-minutes-auth-changed", onChange);
+  }, []);
+  return status;
+}
+
+function GoogleSignInCard() {
+  const status = useAuthStatus();
+  return (
+    <div style={{ marginBottom: 12 }}>
+      {status.state === "signed-in" ? (
+        <>
+          <p style={S.settingsHelp}>
+            Signed in as <strong>{status.detail}</strong>. Progress syncs across devices for this account.
+          </p>
+          <button onClick={() => window._signOutOfGoogle()} style={{ ...S.settingsBtnPrimary, marginTop: 0, background: "#264653" }}>Sign out</button>
+        </>
+      ) : status.state === "denied" ? (
+        <>
+          <p style={{ ...S.settingsHelp, color: "#9b3a1f" }}>
+            Signed in as <strong>{status.detail}</strong>, but this Google account isn't one of the family accounts allowed to sync this data.
+          </p>
+          <button onClick={() => window._signOutOfGoogle()} style={{ ...S.settingsBtnPrimary, marginTop: 0, background: "#264653" }}>Sign out</button>
+        </>
+      ) : (
+        <>
+          <p style={{ ...S.settingsHelp, color: status.state === "error" ? "#9b3a1f" : undefined }}>
+            {status.state === "checking"
+              ? "Checking sign-in..."
+              : status.state === "error"
+              ? `Sign-in failed: ${status.detail}`
+              : "Sign in with a family Google account to sync across devices."}
+          </p>
+          <button onClick={() => window._signInWithGoogle()} style={{ ...S.settingsBtnPrimary, marginTop: 0 }}>Sign in with Google</button>
+        </>
+      )}
+    </div>
+  );
+}
+
+function ReadingSettingsView({ apiKey, model, syncMode, onSaveKey, onSaveModel, onBack }) {
   const [keyInput, setKeyInput] = useState(apiKey || "");
   const [modelInput, setModelInput] = useState(model || "claude-sonnet-4-5");
   const [revealed, setRevealed] = useState(false);
@@ -6268,13 +6438,14 @@ function SettingsView({ apiKey, model, syncMode, onSaveKey, onSaveModel, onBack 
 
       <div style={S.settingsCard}>
         <label style={S.settingsLabel}>Sync</label>
+        <GoogleSignInCard />
         {syncMode === "synced" ? (
           <p style={S.settingsHelp}>
             <strong>Connected to Firebase.</strong> Progress and stories sync across both phones for family <code>{typeof FAMILY_CODE !== "undefined" ? FAMILY_CODE : ""}</code>.
           </p>
         ) : (
           <p style={S.settingsHelp}>
-            <strong>Local mode.</strong> Firebase config is missing - progress is stored on this device only.
+            <strong>Local mode.</strong> Sign in with a family Google account above to sync across devices - progress is stored on this device only until then.
           </p>
         )}
       </div>
