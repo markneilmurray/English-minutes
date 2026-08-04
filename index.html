@@ -1298,7 +1298,29 @@ function qPhase3Sound(rng) {
 }
 
 /* ============================ DAY GENERATION ============================ */
-function generateY1Day(rng, term) {
+// Bias which question types appear based on past accuracy per subject, so subjects the
+// child struggles with come up more often and subjects they've mastered come up less -
+// but never disappear entirely, so no topic ever goes fully untouched.
+function subjectWeight(subjects, subjectKey) {
+  const s = subjects && subjects[subjectKey];
+  if (!s || s.attempts < 6) return 1;
+  const acc = s.correct / s.attempts;
+  if (acc < 0.6) return 3;
+  if (acc < 0.8) return 2;
+  if (acc >= 0.95) return 0.5;
+  return 1;
+}
+
+function weightedGeneratorPool(entries, subjects) {
+  const pool = [];
+  for (const entry of entries) {
+    const copies = Math.max(1, Math.round(subjectWeight(subjects, entry.subject)));
+    for (let i = 0; i < copies; i++) pool.push(entry.make);
+  }
+  return pool;
+}
+
+function generateY1Day(rng, term, subjects) {
   // CEW pool grows through the year
   let cewPool;
   if (term === "autumn") {
@@ -1311,32 +1333,32 @@ function generateY1Day(rng, term) {
 
   // Pools of question generators per term
   const generators = [
-    () => qPhonicsGrapheme(rng),
-    () => qPhonicsFindWord(rng),
-    () => qCewSpell(rng, cewPool),
-    () => qCewSpell(rng, cewPool),
-    () => qHfwSpell(rng, Y1_HFW),
-    () => qFullStopOrQuestion(rng),
-    () => qCapital(rng),
+    { subject: "phonics", make: () => qPhonicsGrapheme(rng) },
+    { subject: "phonics", make: () => qPhonicsFindWord(rng) },
+    { subject: "spelling", make: () => qCewSpell(rng, cewPool) },
+    { subject: "spelling", make: () => qCewSpell(rng, cewPool) },
+    { subject: "spelling", make: () => qHfwSpell(rng, Y1_HFW) },
+    { subject: "punctuation", make: () => qFullStopOrQuestion(rng) },
+    { subject: "punctuation", make: () => qCapital(rng) },
   ];
   if (term !== "autumn") {
-    generators.push(() => qPlural(rng));
-    generators.push(() => qSuffixIng(rng));
-    generators.push(() => qCewMissing(rng, cewPool));
+    generators.push({ subject: "grammar", make: () => qPlural(rng) });
+    generators.push({ subject: "grammar", make: () => qSuffixIng(rng) });
+    generators.push({ subject: "cew", make: () => qCewMissing(rng, cewPool) });
   }
   if (term === "summer") {
-    generators.push(() => qSuffixEd(rng));
-    generators.push(() => qPrefixUn(rng));
-    generators.push(() => qExclaim(rng));
-    generators.push(() => qConjunction(rng));
-    generators.push(() => qWordClass(rng));
-    generators.push(() => qIrregularPast(rng));
-    generators.push(() => qIrregularPast(rng)); // doubled so it appears more often
+    generators.push({ subject: "grammar", make: () => qSuffixEd(rng) });
+    generators.push({ subject: "grammar", make: () => qPrefixUn(rng) });
+    generators.push({ subject: "punctuation", make: () => qExclaim(rng) });
+    generators.push({ subject: "grammar", make: () => qConjunction(rng) });
+    generators.push({ subject: "grammar", make: () => qWordClass(rng) });
+    generators.push({ subject: "grammar", make: () => qIrregularPast(rng) });
+    generators.push({ subject: "grammar", make: () => qIrregularPast(rng) }); // doubled so it appears more often
   }
 
-  // 10 main questions, varied across generators
+  // 10 main questions, varied across generators, weighted toward weaker subjects
   const main = [];
-  const shuffled = shuffle(generators, rng);
+  const shuffled = shuffle(weightedGeneratorPool(generators, subjects), rng);
   // Cycle through generators ensuring variety
   for (let i = 0; i < 10; i++) {
     const gen = shuffled[i % shuffled.length];
@@ -1359,21 +1381,21 @@ function generateY1Day(rng, term) {
   ];
 }
 
-function generatePreschoolDay(rng, term) {
+function generatePreschoolDay(rng, term, subjects) {
   const generators = [
-    () => qLetterName(rng),
-    () => qInitialSound(rng),
+    { subject: "phonics", make: () => qLetterName(rng) },
+    { subject: "phonics", make: () => qInitialSound(rng) },
   ];
   if (term !== "autumn") {
-    generators.push(() => qCvcRead(rng));
-    generators.push(() => qRhyme(rng));
+    generators.push({ subject: "reading", make: () => qCvcRead(rng) });
+    generators.push({ subject: "reading", make: () => qRhyme(rng) });
   }
   if (term === "summer") {
-    generators.push(() => qPhase3Sound(rng));
+    generators.push({ subject: "phonics", make: () => qPhase3Sound(rng) });
   }
 
   const main = [];
-  const shuffled = shuffle(generators, rng);
+  const shuffled = shuffle(weightedGeneratorPool(generators, subjects), rng);
   for (let i = 0; i < 8; i++) { // 8 questions for preschool, smaller dose
     const gen = shuffled[i % shuffled.length];
     main.push(gen());
@@ -1440,13 +1462,31 @@ function getLevelLabel(level) {
   }[level] || "Year 1";
 }
 
+// Challenge mode: once a child has strung together several strong days in a row, quietly
+// serve the next term's harder content instead of letting them plateau at their current
+// term's questions. Requires a real run of good days (not one lucky session) before kicking in.
+const CHALLENGE_STREAK_DAYS = 3;
+const CHALLENGE_THRESHOLD = 0.9;
+function isReadyForChallenge(profile) {
+  const days = (profile && profile.days) || {};
+  const dates = Object.keys(days).sort(); // ISO sorts chronologically
+  const recent = dates.slice(-CHALLENGE_STREAK_DAYS);
+  if (recent.length < CHALLENGE_STREAK_DAYS) return false;
+  return recent.every(d => {
+    const rec = days[d];
+    return rec && rec.total >= 8 && (rec.score / rec.total) >= CHALLENGE_THRESHOLD;
+  });
+}
+const NEXT_TERM = { autumn: "spring", spring: "summer", summer: "summer" };
+
 function generateDay(profile, dateISO) {
   const rng = seededRng(`${profile.id}-${dateISO}`);
-  const term = getTerm(new Date(dateISO + "T00:00:00"));
+  let term = getTerm(new Date(dateISO + "T00:00:00"));
+  if (isReadyForChallenge(profile)) term = NEXT_TERM[term] || term;
   const tier = getContentTier(getCurrentLevel(profile));
   return tier === "preschool"
-    ? generatePreschoolDay(rng, term)
-    : generateY1Day(rng, term);
+    ? generatePreschoolDay(rng, term, profile.subjects)
+    : generateY1Day(rng, term, profile.subjects);
 }
 
 /* ============================ UI: ROOT ============================ */
@@ -1690,6 +1730,12 @@ function HomeView({ profile, data, setData, onStart, setView }) {
         <BookOpen size={14} /> <span style={{ marginLeft: 6 }}>{getLevelLabel(getCurrentLevel(profile))} · {termLabel}</span>
       </div>
 
+      {isReadyForChallenge(profile) && (
+        <div style={{ ...S.termBadge, background: "#FBF0DC", color: "#8A5A0C", marginTop: 8 }}>
+          <Star size={14} color="#D4A04A" /> <span style={{ marginLeft: 6 }}>Challenge questions today - {profile.name}'s on a roll!</span>
+        </div>
+      )}
+
       {todayDone ? (
         <div style={S.doneCard}>
           <div style={{ fontWeight: 700, fontSize: 18, marginBottom: 4 }}>Done for today!</div>
@@ -1879,6 +1925,40 @@ function PracticeView({ profile, data, setData, onDone }) {
 }
 
 /* ============================ DONE SCREEN ============================ */
+function Confetti() {
+  const pieces = useMemo(() => {
+    const colors = ["#D4A04A", "#3DAA7C", "#E07856", "#7AA095", "#D4823F"];
+    return Array.from({ length: 32 }, (_, i) => ({
+      id: i,
+      left: Math.random() * 100,
+      delay: Math.random() * 0.5,
+      duration: 2.4 + Math.random() * 1.4,
+      color: colors[i % colors.length],
+      size: 6 + Math.random() * 6,
+      spin: 180 + Math.random() * 540,
+    }));
+  }, []);
+  return (
+    <div style={{ position: "fixed", inset: 0, pointerEvents: "none", overflow: "hidden", zIndex: 999 }} aria-hidden="true">
+      <style>{`
+        @keyframes englishMinutesConfettiFall {
+          0% { transform: translateY(-10vh) rotate(0deg); opacity: 1; }
+          100% { transform: translateY(110vh) rotate(var(--spin)); opacity: 0; }
+        }
+      `}</style>
+      {pieces.map(p => (
+        <div key={p.id} style={{
+          position: "absolute", top: 0, left: `${p.left}%`,
+          width: p.size, height: p.size * 1.6,
+          background: p.color, borderRadius: 2,
+          "--spin": `${p.spin}deg`,
+          animation: `englishMinutesConfettiFall ${p.duration}s ease-in ${p.delay}s 1 forwards`,
+        }} />
+      ))}
+    </div>
+  );
+}
+
 function DoneScreen({ profile, data, setData, answers, questions, onDone, onExtra, isExtra }) {
   const [showReview, setShowReview] = useState(false);
   const total = questions.length;
@@ -1981,6 +2061,7 @@ function DoneScreen({ profile, data, setData, answers, questions, onDone, onExtr
 
   return (
     <div style={S.body}>
+      {pct >= 80 && <Confetti />}
       <div style={S.doneTitle}>{
         isExtra
           ? (pct >= 80 ? "On fire!" : pct >= 50 ? "Brilliant work!" : "Keep going!")
@@ -2106,6 +2187,28 @@ function ResultsView({ profile, onBack }) {
   const bestRow = subjectRows.filter(r => r.acc !== null).sort((a, b) => b.acc - a.acc)[0];
   const workRow = subjectRows.filter(r => r.acc !== null && r.attempts >= 5).sort((a, b) => a.acc - b.acc)[0];
 
+  // This week's per-subject accuracy (last 7 calendar days), separate from the all-time
+  // totals above - lets a parent see what's fresh right now, not just the cumulative picture.
+  const weekSubjects = {};
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(); d.setDate(d.getDate() - i);
+    const iso = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+    const rec = days[iso];
+    if (!rec || !rec.perSubject) continue;
+    for (const [k, v] of Object.entries(rec.perSubject)) {
+      if (!weekSubjects[k]) weekSubjects[k] = { attempts: 0, correct: 0 };
+      weekSubjects[k].attempts += v.attempts;
+      weekSubjects[k].correct += v.correct;
+    }
+  }
+  const weekRows = Object.entries(SUBJECTS).map(([key, meta]) => {
+    const s = weekSubjects[key];
+    const acc = s && s.attempts > 0 ? Math.round((s.correct / s.attempts) * 100) : null;
+    return { key, meta, attempts: s ? s.attempts : 0, acc };
+  });
+  const weekBest = weekRows.filter(r => r.acc !== null && r.attempts >= 3).sort((a, b) => b.acc - a.acc)[0];
+  const weekWork = weekRows.filter(r => r.acc !== null && r.attempts >= 3).sort((a, b) => a.acc - b.acc)[0];
+
   // Last 14 days for streak chart
   const last14 = [];
   for (let i = 13; i >= 0; i--) {
@@ -2188,6 +2291,30 @@ function ResultsView({ profile, onBack }) {
               <div style={S.insightValue}>
                 <span style={{ ...S.subjectDot, background: workRow.meta.colour }} />
                 {workRow.meta.label} ({workRow.acc}%)
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {(weekBest || weekWork) && (
+        <div style={S.insightCard}>
+          <div style={{ ...S.insightLabel, marginBottom: 6 }}>This week</div>
+          {weekBest && (
+            <div style={{ marginBottom: weekWork ? 10 : 0 }}>
+              <div style={S.insightLabel}>Strongest</div>
+              <div style={S.insightValue}>
+                <span style={{ ...S.subjectDot, background: weekBest.meta.colour }} />
+                {weekBest.meta.label} ({weekBest.acc}%)
+              </div>
+            </div>
+          )}
+          {weekWork && weekWork.key !== (weekBest && weekBest.key) && (
+            <div>
+              <div style={S.insightLabel}>Worth practising</div>
+              <div style={S.insightValue}>
+                <span style={{ ...S.subjectDot, background: weekWork.meta.colour }} />
+                {weekWork.meta.label} ({weekWork.acc}%)
               </div>
             </div>
           )}
