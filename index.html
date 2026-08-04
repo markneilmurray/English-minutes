@@ -6321,13 +6321,13 @@ function Home({ profiles, hasApiKey, syncMode, onOpen, onProgress, onSettings })
         <div style={S.decoStack}>
           <button
             onClick={() => typeof window !== "undefined" && window._switchApp && window._switchApp()}
-            style={{ ...S.settingsBtn, marginBottom: 6 }}
+            style={{ ...S.settingsBtn, top: 0 }}
             aria-label="Go to Phonics & Spelling"
             title="Go to Phonics & Spelling"
           >
             <Sparkles size={18}/>
           </button>
-          <button onClick={onSettings} style={S.settingsBtn} aria-label="Settings">
+          <button onClick={onSettings} style={{ ...S.settingsBtn, top: 44 }} aria-label="Settings">
             <Cog size={18}/>
           </button>
           <DecoBook colour="#E76F51"/>
@@ -7139,7 +7139,7 @@ const S = {
     padding: "8px 14px", borderRadius: 12,
     fontSize: 14, color: "#5C4A3A",
   },
-  decoStack: { display: "flex", marginRight: 10, position: "relative", paddingTop: 44 },
+  decoStack: { display: "flex", marginRight: 10, position: "relative", paddingTop: 88 },
 
   cardsGrid: {
     display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(290px, 1fr))",
