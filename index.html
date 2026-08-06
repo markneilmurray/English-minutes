@@ -3470,6 +3470,20 @@ function nextMonday(d = new Date()) {
 function prettyDate(d) {
   return d.toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" });
 }
+// Reverse of isoWeek() - turns "2026-W32" back into the Monday of that ISO week, for
+// displaying a friendly date on library entries.
+function mondayOfIsoWeek(weekStr) {
+  const [yearStr, wStr] = String(weekStr).split("-W");
+  const year = parseInt(yearStr, 10);
+  const week = parseInt(wStr, 10);
+  const jan4 = new Date(Date.UTC(year, 0, 4));
+  const jan4Day = jan4.getUTCDay() || 7;
+  const week1Monday = new Date(jan4);
+  week1Monday.setUTCDate(jan4.getUTCDate() - jan4Day + 1);
+  const target = new Date(week1Monday);
+  target.setUTCDate(week1Monday.getUTCDate() + (week - 1) * 7);
+  return target;
+}
 
 /* ============================ PROFILES ============================ */
 const DEFAULT_PROFILES = {
@@ -4810,6 +4824,634 @@ const STORY_LIBRARY = {
           "emojis": "🦔,🐱,👯,❤️"
         }
       ]
+    },
+    {
+      "title": "The Secret Treehouse",
+      "subtitle": "Ben and Priya find an old treehouse with a big secret.",
+      "palette": [
+        "#5FA83A",
+        "#8B5A2B",
+        "#F4A261"
+      ],
+      "pages": [
+        {
+          "text": "Ben and Priya were exploring the woods behind the school.",
+          "emojis": "🌳,🧒,👧,🍃"
+        },
+        {
+          "text": "\"Look!\" said Priya. \"A treehouse, hidden in the branches!\"",
+          "emojis": "🌲,🏠,👀,✨"
+        },
+        {
+          "text": "A rope ladder hung down from a little wooden door.",
+          "emojis": "🪜,🚪,🌳,🤔"
+        },
+        {
+          "text": "\"Should we climb up?\" asked Ben. His hands were shaking a little.",
+          "emojis": "🧗,😬,🪜,❓",
+          "question": {
+            "type": "prediction",
+            "prompt": "What do you think Ben and Priya will do next?",
+            "options": [
+              "Climb up the ladder",
+              "Run home straight away",
+              "Go and eat their lunch"
+            ],
+            "answer": "Climb up the ladder",
+            "hint": "Think about what curious children usually do when they find something exciting."
+          }
+        },
+        {
+          "text": "They climbed up slowly. The ladder wobbled but held steady.",
+          "emojis": "🧗,👧,🧒,🪢"
+        },
+        {
+          "text": "Inside, the treehouse was dusty but cosy. There was an old wooden box in the corner.",
+          "emojis": "📦,🏠,🕸️,🪑"
+        },
+        {
+          "text": "The box had a rusty lock and a faded label that said KEEP OUT.",
+          "emojis": "🔒,📦,🏷️,😯",
+          "question": {
+            "type": "skimscan",
+            "prompt": "What did the label on the box say?",
+            "options": [
+              "KEEP OUT",
+              "OPEN ME",
+              "TREASURE"
+            ],
+            "answer": "KEEP OUT",
+            "hint": "Look back at the words written on the box's label."
+          }
+        },
+        {
+          "text": "\"Someone doesn't want us to open it,\" whispered Priya.",
+          "emojis": "🤫,😳,👧,📦"
+        },
+        {
+          "text": "But Ben found the lock was already broken. It clicked open with a gentle push.",
+          "emojis": "🔓,👋,😲,🧒"
+        },
+        {
+          "text": "Inside were old photographs, a compass, and a notebook full of maps.",
+          "emojis": "🖼️,🧭,📓,🗺️",
+          "question": {
+            "type": "retrieval",
+            "prompt": "What three things were inside the box?",
+            "options": [
+              "Photographs, a compass, and a notebook",
+              "Toys, sweets, and a torch",
+              "Books, a hat, and a key"
+            ],
+            "answer": "Photographs, a compass, and a notebook",
+            "hint": "Look back at what the box actually contained."
+          }
+        },
+        {
+          "text": "The photographs showed children building the treehouse, many years ago.",
+          "emojis": "🖼️,👷,🌳,🕰️"
+        },
+        {
+          "text": "\"This must have been someone's special place,\" said Ben quietly.",
+          "emojis": "🥹,🏠,🧒,💭"
+        },
+        {
+          "text": "\"Why do you think they left it all behind?\" Priya wondered aloud.",
+          "emojis": "🤔,📦,👧,❓",
+          "question": {
+            "type": "inference",
+            "prompt": "Why might the children have left the box behind long ago?",
+            "options": [
+              "They probably grew up and moved away",
+              "They didn't like the treehouse",
+              "The treehouse was too small"
+            ],
+            "answer": "They probably grew up and moved away",
+            "hint": "Think about what usually happens to children's hideouts as they grow older."
+          }
+        },
+        {
+          "text": "They decided to keep the treehouse exactly as it was, like a little museum.",
+          "emojis": "🏛️,🌳,🤝,✨"
+        },
+        {
+          "text": "Ben carefully placed the notebook back and closed the lid softly.",
+          "emojis": "📓,📦,🧒,🤲"
+        },
+        {
+          "text": "\"Let's come back every week,\" said Priya, smiling at their new secret place.",
+          "emojis": "😊,🏠,🗓️,🌳",
+          "question": {
+            "type": "prediction",
+            "prompt": "What do you think Ben and Priya will do with their new secret place?",
+            "options": [
+              "Visit it often and keep it a secret",
+              "Tell the whole school about it",
+              "Never go back again"
+            ],
+            "answer": "Visit it often and keep it a secret",
+            "hint": "Think about how the children felt about the treehouse by the end."
+          }
+        },
+        {
+          "text": "They climbed back down as the sun began to set behind the trees.",
+          "emojis": "🌅,🧗,🌳,👋"
+        },
+        {
+          "text": "That night, Ben drew his own map of the woods in his diary.",
+          "emojis": "📓,✏️,🌙,🧒"
+        },
+        {
+          "text": "From then on, the old treehouse belonged to two new friends.",
+          "emojis": "🏠,🤝,🌳,💚",
+          "question": {
+            "type": "retrieval",
+            "prompt": "Where was the treehouse hidden?",
+            "options": [
+              "In the woods behind the school",
+              "In Ben's back garden",
+              "At the park by the lake"
+            ],
+            "answer": "In the woods behind the school",
+            "hint": "Look back at the very first page of the story."
+          }
+        },
+        {
+          "text": "Priya waved as the last golden light faded behind the branches.",
+          "emojis": "👋,🌇,🌳,😊"
+        }
+      ]
+    },
+    {
+      "title": "Race to the Moon",
+      "subtitle": "Jamal builds a rocket for the school science fair.",
+      "palette": [
+        "#264653",
+        "#3A86FF",
+        "#E9C46A"
+      ],
+      "pages": [
+        {
+          "text": "Jamal loved space. His bedroom walls were covered in posters of planets.",
+          "emojis": "🚀,🪐,🧒,⭐"
+        },
+        {
+          "text": "\"The science fair is next week,\" said his teacher. \"Bring your best invention!\"",
+          "emojis": "👩‍🏫,🏫,📢,🔬"
+        },
+        {
+          "text": "Jamal decided to build a model rocket that could really launch.",
+          "emojis": "🚀,🛠️,🧒,💡"
+        },
+        {
+          "text": "\"Do you think it will actually fly?\" asked his sister Amara, watching him work.",
+          "emojis": "🤨,🚀,👧,🔧",
+          "question": {
+            "type": "prediction",
+            "prompt": "What do you think will happen when Jamal tests his rocket?",
+            "options": [
+              "It might not work on the first try",
+              "It will fly perfectly first time",
+              "It will explode instantly"
+            ],
+            "answer": "It might not work on the first try",
+            "hint": "Think about how most inventions work when they are tested for the very first time."
+          }
+        },
+        {
+          "text": "Jamal used a plastic bottle, cardboard fins, and a pump full of air.",
+          "emojis": "🍾,📦,🔧,💨"
+        },
+        {
+          "text": "On the first test, the rocket wobbled and flopped sideways onto the grass.",
+          "emojis": "🚀,😅,🌱,💥"
+        },
+        {
+          "text": "\"The fins are too small,\" said Jamal, looking at his design carefully.",
+          "emojis": "🤔,✂️,📐,🚀",
+          "question": {
+            "type": "skimscan",
+            "prompt": "What did Jamal say was wrong with his rocket?",
+            "options": [
+              "The fins were too small",
+              "The bottle was too heavy",
+              "There was no air"
+            ],
+            "answer": "The fins were too small",
+            "hint": "Look back at what Jamal noticed after the first test."
+          }
+        },
+        {
+          "text": "He cut bigger fins from cardboard and taped them on very carefully.",
+          "emojis": "✂️,📦,🔧,🧒"
+        },
+        {
+          "text": "This time, the rocket shot straight up into the sky with a loud whoosh!",
+          "emojis": "🚀,💨,☁️,😃"
+        },
+        {
+          "text": "At the science fair, Jamal's rocket flew higher than anyone else's.",
+          "emojis": "🏆,🚀,🏫,🎉",
+          "question": {
+            "type": "retrieval",
+            "prompt": "What happened at the science fair?",
+            "options": [
+              "Jamal's rocket flew higher than anyone else's",
+              "Jamal's rocket didn't fly at all",
+              "Amara won first prize"
+            ],
+            "answer": "Jamal's rocket flew higher than anyone else's",
+            "hint": "Look back at what happened when Jamal showed his rocket."
+          }
+        },
+        {
+          "text": "The judges clapped and asked Jamal how he had fixed his design.",
+          "emojis": "👏,🧑‍⚖️,🚀,😊"
+        },
+        {
+          "text": "\"I just kept trying different fins until it worked,\" Jamal explained.",
+          "emojis": "🗣️,🔧,🚀,💡"
+        },
+        {
+          "text": "Amara grinned. \"I knew you could do it,\" she said, giving him a hug.",
+          "emojis": "🤗,👧,🧒,😄",
+          "question": {
+            "type": "inference",
+            "prompt": "Why did Amara say she knew Jamal could do it?",
+            "options": [
+              "Because she believed in her brother",
+              "Because she built the rocket herself",
+              "Because she read it in a book"
+            ],
+            "answer": "Because she believed in her brother",
+            "hint": "Think about how Amara felt watching Jamal work all week."
+          }
+        },
+        {
+          "text": "Jamal won a golden star sticker for the Most Creative Invention.",
+          "emojis": "🌟,🏅,🚀,😁"
+        },
+        {
+          "text": "That evening, he looked up at the real moon through his bedroom window.",
+          "emojis": "🌕,🪟,🧒,✨"
+        },
+        {
+          "text": "\"One day,\" he whispered, \"I'll build a rocket that really goes there.\"",
+          "emojis": "🚀,🌙,💭,🧒",
+          "question": {
+            "type": "prediction",
+            "prompt": "What do you think Jamal will do next?",
+            "options": [
+              "Keep building and learning about rockets",
+              "Give up on rockets forever",
+              "Only play video games"
+            ],
+            "answer": "Keep building and learning about rockets",
+            "hint": "Think about how much Jamal loves space and how proud he felt."
+          }
+        },
+        {
+          "text": "The next morning, he was already sketching an even bigger rocket.",
+          "emojis": "✏️,📓,🚀,🌅"
+        },
+        {
+          "text": "Amara peeked over his shoulder. \"Can I help build this one too?\" she asked.",
+          "emojis": "👧,😊,📓,🚀"
+        },
+        {
+          "text": "\"Always,\" said Jamal, and together they got to work.",
+          "emojis": "🤝,🚀,👧,🧒",
+          "question": {
+            "type": "retrieval",
+            "prompt": "What did Jamal build for the science fair?",
+            "options": [
+              "A model rocket",
+              "A robot",
+              "A model volcano"
+            ],
+            "answer": "A model rocket",
+            "hint": "Look back at what Jamal decided to build near the start of the story."
+          }
+        },
+        {
+          "text": "The stars twinkled outside as Jamal and Amara dreamed of space together.",
+          "emojis": "🌌,🧒,👧,✨"
+        }
+      ]
+    },
+    {
+      "title": "The Wobbly Bridge",
+      "subtitle": "Freya and Oscar must cross a broken bridge to get home.",
+      "palette": [
+        "#2A9D8F",
+        "#8338EC",
+        "#F4A261"
+      ],
+      "pages": [
+        {
+          "text": "Freya and Oscar were walking home from the park along the river path.",
+          "emojis": "🚶,👧,🧒,🌊"
+        },
+        {
+          "text": "Dark clouds rolled in, and thick raindrops began to fall.",
+          "emojis": "🌧️,☁️,😟,💧"
+        },
+        {
+          "text": "\"We need to cross the bridge quickly!\" said Oscar, pointing ahead.",
+          "emojis": "🌉,🏃,🧒,👉"
+        },
+        {
+          "text": "But when they reached it, one of the wooden planks was cracked and missing.",
+          "emojis": "🌉,😲,🪵,❗",
+          "question": {
+            "type": "prediction",
+            "prompt": "What do you think Freya and Oscar will do about the broken bridge?",
+            "options": [
+              "Find a careful way to get across",
+              "Jump straight into the river",
+              "Sit down and cry"
+            ],
+            "answer": "Find a careful way to get across",
+            "hint": "Think about what sensible children would try to do next."
+          }
+        },
+        {
+          "text": "\"We can't go back, it's too far in the rain,\" said Freya, thinking hard.",
+          "emojis": "🤔,🌧️,👧,🌉"
+        },
+        {
+          "text": "She spotted a long branch lying nearby that could cover the gap.",
+          "emojis": "🪵,👀,👧,💡"
+        },
+        {
+          "text": "Oscar helped her drag the branch and lay it carefully over the broken plank.",
+          "emojis": "🪵,🤝,🧒,👧",
+          "question": {
+            "type": "skimscan",
+            "prompt": "What did the children use to cover the gap in the bridge?",
+            "options": [
+              "A long branch",
+              "A ladder",
+              "A rope"
+            ],
+            "answer": "A long branch",
+            "hint": "Look back at what Freya found lying nearby."
+          }
+        },
+        {
+          "text": "\"Hold my hand,\" said Oscar. \"We'll go one at a time, nice and slow.\"",
+          "emojis": "🤝,🧒,👧,🐢"
+        },
+        {
+          "text": "Freya went first, gripping the rail tightly as the wind howled around her.",
+          "emojis": "💨,🧗,👧,😬"
+        },
+        {
+          "text": "She made it across safely, then turned to help guide Oscar over too.",
+          "emojis": "✅,👧,🧒,🌉",
+          "question": {
+            "type": "retrieval",
+            "prompt": "Who crossed the bridge first?",
+            "options": [
+              "Freya",
+              "Oscar",
+              "Neither of them crossed"
+            ],
+            "answer": "Freya",
+            "hint": "Look back at who Oscar told to go first."
+          }
+        },
+        {
+          "text": "Oscar's foot slipped for a moment, but Freya's hand held him steady.",
+          "emojis": "😨,🤝,🧒,👧"
+        },
+        {
+          "text": "\"Thank you,\" he gasped, once both his feet were on solid ground.",
+          "emojis": "😅,🙏,🧒,👧"
+        },
+        {
+          "text": "They hugged with relief, soaked through but safe on the other side.",
+          "emojis": "🤗,🌧️,😊,👣",
+          "question": {
+            "type": "inference",
+            "prompt": "Why did Freya and Oscar hug when they reached the other side?",
+            "options": [
+              "Because they were relieved and safe",
+              "Because they were angry at each other",
+              "Because the sun had come out"
+            ],
+            "answer": "Because they were relieved and safe",
+            "hint": "Think about how scary crossing the broken bridge must have felt."
+          }
+        },
+        {
+          "text": "They ran the rest of the way home, laughing despite the pouring rain.",
+          "emojis": "🏃,😂,🌧️,🏡"
+        },
+        {
+          "text": "Mum opened the door, gasping at how wet and muddy they both were.",
+          "emojis": "🚪,👩,😮,🧺"
+        },
+        {
+          "text": "\"There was a broken bridge,\" Oscar explained. \"But we worked together!\"",
+          "emojis": "🗣️,🌉,🤝,😄",
+          "question": {
+            "type": "prediction",
+            "prompt": "What do you think Mum will do when she hears the whole story?",
+            "options": [
+              "Praise them for helping each other",
+              "Send them straight back outside",
+              "Ignore what happened"
+            ],
+            "answer": "Praise them for helping each other",
+            "hint": "Think about how most parents would feel hearing their children stayed calm and safe."
+          }
+        },
+        {
+          "text": "Mum wrapped them both in warm towels and made hot chocolate.",
+          "emojis": "🧣,☕,👩,😊"
+        },
+        {
+          "text": "\"You two make a great team,\" she said, smiling proudly.",
+          "emojis": "🥰,👧,🧒,👏"
+        },
+        {
+          "text": "That night, the wobbly bridge became their favourite story to tell.",
+          "emojis": "🌉,📖,😄,🌙",
+          "question": {
+            "type": "retrieval",
+            "prompt": "Why couldn't the children cross the bridge easily?",
+            "options": [
+              "A wooden plank was cracked and missing",
+              "The bridge was too tall",
+              "There was a locked gate"
+            ],
+            "answer": "A wooden plank was cracked and missing",
+            "hint": "Look back at what they discovered when they reached the bridge."
+          }
+        },
+        {
+          "text": "Outside, the rain finally stopped, and a rainbow arched over the river.",
+          "emojis": "🌈,🌧️,😊,🏡"
+        }
+      ]
+    },
+    {
+      "title": "The Grumpy Dragon",
+      "subtitle": "Ellie discovers why the village dragon is always so cross.",
+      "palette": [
+        "#E63946",
+        "#F4A261",
+        "#264653"
+      ],
+      "pages": [
+        {
+          "text": "In a village near the hills, everyone was scared of the old grey dragon.",
+          "emojis": "🐉,🏘️,😨,⛰️"
+        },
+        {
+          "text": "He lived in a cave and grumbled loudly whenever anyone came near.",
+          "emojis": "🕳️,😠,🐉,📢"
+        },
+        {
+          "text": "Ellie wasn't so sure he was really as scary as everyone said.",
+          "emojis": "🤔,👧,🐉,💭"
+        },
+        {
+          "text": "\"I'm going to visit him,\" she told her worried grandmother one morning.",
+          "emojis": "🗣️,👵,👧,😟",
+          "question": {
+            "type": "prediction",
+            "prompt": "What do you think will happen when Ellie visits the dragon?",
+            "options": [
+              "She might discover he isn't scary after all",
+              "The dragon will chase her away instantly",
+              "She will get lost on the way"
+            ],
+            "answer": "She might discover he isn't scary after all",
+            "hint": "Think about what Ellie believes about the dragon compared to everyone else."
+          }
+        },
+        {
+          "text": "She packed a basket of berries and walked bravely up the rocky hill.",
+          "emojis": "🧺,🍓,🚶,⛰️"
+        },
+        {
+          "text": "At the cave entrance, she heard a low, rumbling groan from inside.",
+          "emojis": "🕳️,😬,👂,🐉"
+        },
+        {
+          "text": "\"Are you alright?\" Ellie called gently, peering into the darkness.",
+          "emojis": "🗣️,🕳️,👧,😳",
+          "question": {
+            "type": "skimscan",
+            "prompt": "What did Ellie call out to the dragon?",
+            "options": [
+              "\"Are you alright?\"",
+              "\"Go away!\"",
+              "\"I am not scared!\""
+            ],
+            "answer": "\"Are you alright?\"",
+            "hint": "Look back at the exact words Ellie said at the cave entrance."
+          }
+        },
+        {
+          "text": "The dragon sniffled. \"My tooth hurts terribly,\" he grumbled sadly.",
+          "emojis": "🦷,😣,🐉,😢"
+        },
+        {
+          "text": "Ellie noticed his cheek was swollen and one tooth looked wobbly and sore.",
+          "emojis": "👀,🦷,🐉,😯"
+        },
+        {
+          "text": "\"My grandad had a wobbly tooth too. Let me help,\" she offered kindly.",
+          "emojis": "🤝,👵,🦷,👧",
+          "question": {
+            "type": "retrieval",
+            "prompt": "What was actually wrong with the dragon?",
+            "options": [
+              "He had a sore, wobbly tooth",
+              "He was hungry",
+              "He had hurt his wing"
+            ],
+            "answer": "He had a sore, wobbly tooth",
+            "hint": "Look back at what Ellie noticed about the dragon's cheek."
+          }
+        },
+        {
+          "text": "She tied a soft cloth gently around the tooth and gave it a tiny, careful tug.",
+          "emojis": "🧵,🦷,👧,🐉"
+        },
+        {
+          "text": "Pop! The wobbly tooth came out, and the dragon roared with surprise.",
+          "emojis": "💥,🦷,😲,🐉"
+        },
+        {
+          "text": "But then he smiled a huge, gap-toothed, grateful dragon smile.",
+          "emojis": "😁,🐉,🦷,✨",
+          "question": {
+            "type": "inference",
+            "prompt": "Why had the dragon been grumbling at everyone for so long?",
+            "options": [
+              "Because his tooth hurt and no one had helped him",
+              "Because he didn't like the village",
+              "Because he wanted more berries"
+            ],
+            "answer": "Because his tooth hurt and no one had helped him",
+            "hint": "Think about why someone in a lot of pain might seem cross to everyone around them."
+          }
+        },
+        {
+          "text": "\"Thank you,\" he rumbled softly. \"No one ever came close enough to ask.\"",
+          "emojis": "🙏,🐉,😊,👧"
+        },
+        {
+          "text": "Ellie gave him the basket of berries, and he ate them all in one gulp.",
+          "emojis": "🍓,🧺,😋,🐉"
+        },
+        {
+          "text": "From that day, the dragon sat outside his cave, smiling at everyone who passed.",
+          "emojis": "😊,🐉,🕳️,👋",
+          "question": {
+            "type": "prediction",
+            "prompt": "What do you think the villagers will feel about the dragon now?",
+            "options": [
+              "They will feel less scared and more friendly",
+              "They will still be terrified of him",
+              "They will move away from the village"
+            ],
+            "answer": "They will feel less scared and more friendly",
+            "hint": "Think about how the dragon has changed since his tooth was fixed."
+          }
+        },
+        {
+          "text": "Children began waving to him on their way to school each morning.",
+          "emojis": "👋,🏫,🧒,🐉"
+        },
+        {
+          "text": "He even let them ride gently on his back around the village square.",
+          "emojis": "🐉,🎠,😄,🧒"
+        },
+        {
+          "text": "Ellie had made a brand-new friend, just by being brave and kind.",
+          "emojis": "🤝,👧,🐉,💚",
+          "question": {
+            "type": "retrieval",
+            "prompt": "Who helped the dragon feel better?",
+            "options": [
+              "Ellie",
+              "Ellie's grandmother",
+              "The village children"
+            ],
+            "answer": "Ellie",
+            "hint": "Look back at who visited the dragon's cave."
+          }
+        },
+        {
+          "text": "Ellie waved goodbye, promising to visit her new friend again soon.",
+          "emojis": "👋,👧,🐉,💚"
+        }
+      ]
     }
   ],
   "freddie": [
@@ -5700,6 +6342,450 @@ const STORY_LIBRARY = {
           "emojis": "🌟,😴,🛏️,💤"
         }
       ]
+    },
+    {
+      "title": "Big Blue Boat",
+      "subtitle": "A little boat sails across the bath.",
+      "palette": [
+        "#3A86FF",
+        "#F4A261",
+        "#E9C46A"
+      ],
+      "pages": [
+        {
+          "text": "Freddie had a big blue boat.",
+          "emojis": "🚤,🛁,🧒,💙"
+        },
+        {
+          "text": "He put the boat in the bath.",
+          "emojis": "🛁,🚤,💦,😊"
+        },
+        {
+          "text": "The boat went bob, bob, bob.",
+          "emojis": "🚤,🌊,😄,👆"
+        },
+        {
+          "text": "A yellow duck sat on the boat.",
+          "emojis": "🦆,🚤,🟡,😊",
+          "question": {
+            "type": "retrieval",
+            "prompt": "What sat on the boat?",
+            "options": [
+              "A yellow duck",
+              "A red car",
+              "A big fish"
+            ],
+            "answer": "A yellow duck",
+            "hint": "Look back at what Freddie put on the boat."
+          }
+        },
+        {
+          "text": "The duck went quack, quack, quack.",
+          "emojis": "🦆,🗣️,😄,💦"
+        },
+        {
+          "text": "Freddie made a big splash.",
+          "emojis": "💦,🧒,😆,🛁"
+        },
+        {
+          "text": "Splash! Splash! Splash! Water went everywhere.",
+          "emojis": "💦,💦,😲,🛁",
+          "question": {
+            "type": "retrieval",
+            "prompt": "What did Freddie make in the bath?",
+            "options": [
+              "A big splash",
+              "A sandcastle",
+              "A cake"
+            ],
+            "answer": "A big splash",
+            "hint": "Look back at what happened just before this page."
+          }
+        },
+        {
+          "text": "The boat went round and round.",
+          "emojis": "🚤,🔄,😄,🛁"
+        },
+        {
+          "text": "Freddie clapped his hands.",
+          "emojis": "👏,🧒,😄,🛁"
+        },
+        {
+          "text": "\"More bubbles, please!\" said Freddie.",
+          "emojis": "🫧,🗣️,🧒,😊",
+          "question": {
+            "type": "retrieval",
+            "prompt": "What did Freddie ask for?",
+            "options": [
+              "More bubbles",
+              "More toys",
+              "More ducks"
+            ],
+            "answer": "More bubbles",
+            "hint": "Look back at what Freddie said."
+          }
+        },
+        {
+          "text": "Mum poured in soft, white bubbles.",
+          "emojis": "🫧,👩,🛁,✨"
+        },
+        {
+          "text": "The bath was full of foam.",
+          "emojis": "🫧,🛁,☁️,😄"
+        },
+        {
+          "text": "Freddie giggled and hugged his boat.",
+          "emojis": "🤗,🚤,😆,🧒",
+          "question": {
+            "type": "retrieval",
+            "prompt": "What did Freddie hug?",
+            "options": [
+              "His boat",
+              "His mum",
+              "A duck"
+            ],
+            "answer": "His boat",
+            "hint": "Look back at what Freddie was holding."
+          }
+        },
+        {
+          "text": "Time to get out and dry off. Bath time was fun!",
+          "emojis": "🧺,🧒,😊,💙"
+        }
+      ]
+    },
+    {
+      "title": "Teddy's Tea Party",
+      "subtitle": "Freddie sets up a tea party for his toys.",
+      "palette": [
+        "#F4A261",
+        "#E9C46A",
+        "#2A9D8F"
+      ],
+      "pages": [
+        {
+          "text": "Freddie had a big teddy bear.",
+          "emojis": "🧸,🧒,😊,💛"
+        },
+        {
+          "text": "He set up a little tea party.",
+          "emojis": "🍵,🧸,🧒,✨"
+        },
+        {
+          "text": "Teddy sat at the top of the table.",
+          "emojis": "🧸,🪑,🍵,😊"
+        },
+        {
+          "text": "Bunny and Duck sat next to Teddy.",
+          "emojis": "🐰,🦆,🧸,🪑",
+          "question": {
+            "type": "retrieval",
+            "prompt": "Who sat next to Teddy?",
+            "options": [
+              "Bunny and Duck",
+              "Mum and Dad",
+              "Two dolls"
+            ],
+            "answer": "Bunny and Duck",
+            "hint": "Look back at who joined Teddy at the table."
+          }
+        },
+        {
+          "text": "Freddie poured pretend tea for everyone.",
+          "emojis": "🍵,🧒,😄,✨"
+        },
+        {
+          "text": "\"More cake, Teddy?\" asked Freddie.",
+          "emojis": "🍰,🧸,🗣️,😊"
+        },
+        {
+          "text": "Teddy had two pretend cakes.",
+          "emojis": "🍰,🍰,🧸,😋",
+          "question": {
+            "type": "retrieval",
+            "prompt": "How many cakes did Teddy have?",
+            "options": [
+              "Two cakes",
+              "One cake",
+              "Three cakes"
+            ],
+            "answer": "Two cakes",
+            "hint": "Look back at how many cakes Teddy got."
+          }
+        },
+        {
+          "text": "Bunny wanted a biscuit instead.",
+          "emojis": "🍪,🐰,🗣️,😊"
+        },
+        {
+          "text": "Freddie gave Bunny a big, round biscuit.",
+          "emojis": "🍪,🐰,🧒,😄"
+        },
+        {
+          "text": "Duck quacked and splashed his tea.",
+          "emojis": "🦆,🍵,💦,😆",
+          "question": {
+            "type": "retrieval",
+            "prompt": "What did Duck do with his tea?",
+            "options": [
+              "He splashed it",
+              "He drank it neatly",
+              "He hid it"
+            ],
+            "answer": "He splashed it",
+            "hint": "Look back at what happened to Duck's tea."
+          }
+        },
+        {
+          "text": "Freddie laughed and wiped up the mess.",
+          "emojis": "😂,🧻,🧒,🍵"
+        },
+        {
+          "text": "Everyone had a lovely time at the party.",
+          "emojis": "🎉,🧸,🐰,🦆"
+        },
+        {
+          "text": "Freddie hugged Teddy goodnight.",
+          "emojis": "🤗,🧸,🌙,😊",
+          "question": {
+            "type": "retrieval",
+            "prompt": "Who did Freddie hug goodnight?",
+            "options": [
+              "Teddy",
+              "Bunny",
+              "Duck"
+            ],
+            "answer": "Teddy",
+            "hint": "Look back at who Freddie hugged at the end."
+          }
+        },
+        {
+          "text": "Then it was time for bed. Sweet dreams, Freddie!",
+          "emojis": "🛏️,🌙,😴,💛"
+        }
+      ]
+    },
+    {
+      "title": "The Wiggly Worm",
+      "subtitle": "Freddie meets a friendly worm in the garden.",
+      "palette": [
+        "#5FA83A",
+        "#8B5A2B",
+        "#F4A261"
+      ],
+      "pages": [
+        {
+          "text": "Freddie dug in the garden with his spade.",
+          "emojis": "🪴,🧒,🛠️,🌱"
+        },
+        {
+          "text": "He dug and dug in the soft, brown mud.",
+          "emojis": "🟤,🛠️,🧒,😄"
+        },
+        {
+          "text": "Something wiggled under the mud.",
+          "emojis": "😲,🟤,👀,🧒"
+        },
+        {
+          "text": "It was a little pink worm!",
+          "emojis": "🪱,😯,🧒,🟤",
+          "question": {
+            "type": "retrieval",
+            "prompt": "What did Freddie find in the mud?",
+            "options": [
+              "A little pink worm",
+              "A shiny stone",
+              "A small snail"
+            ],
+            "answer": "A little pink worm",
+            "hint": "Look back at what wiggled under the mud."
+          }
+        },
+        {
+          "text": "The worm wiggled left and right.",
+          "emojis": "🪱,↔️,😄,🧒"
+        },
+        {
+          "text": "\"Hello, worm!\" said Freddie with a smile.",
+          "emojis": "🗣️,🪱,😊,🧒"
+        },
+        {
+          "text": "Freddie put the worm on a big green leaf.",
+          "emojis": "🍃,🪱,🧒,🟢",
+          "question": {
+            "type": "retrieval",
+            "prompt": "Where did Freddie put the worm?",
+            "options": [
+              "On a big green leaf",
+              "In a bucket",
+              "On the path"
+            ],
+            "answer": "On a big green leaf",
+            "hint": "Look back at where Freddie placed the worm."
+          }
+        },
+        {
+          "text": "The worm wiggled all around the leaf.",
+          "emojis": "🪱,🍃,😄,↔️"
+        },
+        {
+          "text": "A little bird flew down to look too.",
+          "emojis": "🐦,👀,🍃,😊"
+        },
+        {
+          "text": "The bird did not eat the worm. It just watched.",
+          "emojis": "🐦,🪱,👀,😊",
+          "question": {
+            "type": "retrieval",
+            "prompt": "What did the bird do?",
+            "options": [
+              "It just watched the worm",
+              "It ate the worm",
+              "It flew away scared"
+            ],
+            "answer": "It just watched the worm",
+            "hint": "Look back at what the bird did next to the worm."
+          }
+        },
+        {
+          "text": "Freddie gently put the worm back in the mud.",
+          "emojis": "🪱,🟤,🧒,🤲"
+        },
+        {
+          "text": "\"Bye bye, wiggly worm!\" said Freddie.",
+          "emojis": "👋,🪱,🧒,😊"
+        },
+        {
+          "text": "The worm wiggled back down into its home.",
+          "emojis": "🪱,🟤,⬇️,😊",
+          "question": {
+            "type": "retrieval",
+            "prompt": "Where did the worm wiggle back to?",
+            "options": [
+              "Down into its home in the mud",
+              "Up onto a leaf",
+              "Into a bucket"
+            ],
+            "answer": "Down into its home in the mud",
+            "hint": "Look back at where the worm went at the end."
+          }
+        },
+        {
+          "text": "Freddie waved and went to wash his muddy hands.",
+          "emojis": "🧼,👋,🧒,💧"
+        }
+      ]
+    },
+    {
+      "title": "Hop Hop Frog",
+      "subtitle": "Freddie follows a bouncy frog through the garden.",
+      "palette": [
+        "#2A9D8F",
+        "#E9C46A",
+        "#5FA83A"
+      ],
+      "pages": [
+        {
+          "text": "Freddie saw a little green frog.",
+          "emojis": "🐸,🧒,🟢,😊"
+        },
+        {
+          "text": "The frog sat by the pond.",
+          "emojis": "🐸,🪷,💧,😊"
+        },
+        {
+          "text": "Hop! The frog jumped onto a leaf.",
+          "emojis": "🐸,🍃,⬆️,😄"
+        },
+        {
+          "text": "Freddie hopped too, just like the frog.",
+          "emojis": "🐸,🧒,⬆️,😆",
+          "question": {
+            "type": "retrieval",
+            "prompt": "What did Freddie do, just like the frog?",
+            "options": [
+              "He hopped",
+              "He swam",
+              "He sat down"
+            ],
+            "answer": "He hopped",
+            "hint": "Look back at what Freddie copied the frog doing."
+          }
+        },
+        {
+          "text": "Hop! Hop! They jumped across the grass.",
+          "emojis": "🐸,🧒,🌱,😄"
+        },
+        {
+          "text": "The frog hopped onto a big grey stone.",
+          "emojis": "🐸,🪨,⬆️,😊"
+        },
+        {
+          "text": "Freddie could not jump that far.",
+          "emojis": "🐸,🧒,😅,🪨",
+          "question": {
+            "type": "retrieval",
+            "prompt": "Could Freddie jump as far as the frog?",
+            "options": [
+              "No, he could not",
+              "Yes, he jumped further",
+              "He did not try"
+            ],
+            "answer": "No, he could not",
+            "hint": "Look back at what happened when the frog jumped onto the stone."
+          }
+        },
+        {
+          "text": "He giggled and walked around the stone instead.",
+          "emojis": "😂,🚶,🪨,🧒"
+        },
+        {
+          "text": "The frog hopped back down to the pond.",
+          "emojis": "🐸,💧,⬇️,😊"
+        },
+        {
+          "text": "Splash! The frog jumped into the water.",
+          "emojis": "🐸,💦,😲,💧",
+          "question": {
+            "type": "retrieval",
+            "prompt": "Where did the frog jump at the end?",
+            "options": [
+              "Into the water",
+              "Onto a leaf",
+              "Onto the stone"
+            ],
+            "answer": "Into the water",
+            "hint": "Look back at where the frog went at the pond."
+          }
+        },
+        {
+          "text": "Freddie waved goodbye to the little frog.",
+          "emojis": "👋,🐸,🧒,😊"
+        },
+        {
+          "text": "\"Bye bye, hoppy frog!\" he said happily.",
+          "emojis": "🗣️,🐸,😄,👋"
+        },
+        {
+          "text": "Freddie hopped all the way back home.",
+          "emojis": "🧒,⬆️,🏡,😄",
+          "question": {
+            "type": "retrieval",
+            "prompt": "How did Freddie go home?",
+            "options": [
+              "He hopped all the way",
+              "He was carried",
+              "He ran fast"
+            ],
+            "answer": "He hopped all the way",
+            "hint": "Look back at how Freddie travelled home."
+          }
+        },
+        {
+          "text": "What a hoppy, happy day it had been!",
+          "emojis": "😄,🐸,🌟,🏡"
+        }
+      ]
     }
   ]
 };
@@ -6130,7 +7216,7 @@ function useSpeech() {
 /* ============================ MAIN APP ============================ */
 function ReadingApp() {
   const [profiles, setProfiles] = useState(null);
-  const [view, setView] = useState("home"); // home | reader | progress
+  const [view, setView] = useState("home"); // home | reader | progress | library
   const [activeChild, setActiveChild] = useState(null);
   const [story, setStory] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -6182,19 +7268,42 @@ function ReadingApp() {
     await saveKey(PROFILES_KEY, next);
   }, []);
 
-  const openChild = async (id) => {
+  // Streak tracks daily reading activity (opening any story, new or from the library) -
+  // deliberately separate from awardCompletion, which only fires once per week when a new
+  // story is finished. Tying streak to that made it impossible to build a streak from daily
+  // reading, since it could only ever move once every 7 days.
+  const markReadToday = async (id) => {
+    const next = { ...profiles };
+    const p = { ...next[id] };
+    const today = new Date().toISOString().slice(0, 10);
+    if (p.lastDay === today) return; // already counted today
+    const yesterday = new Date(); yesterday.setDate(yesterday.getDate() - 1);
+    const yISO = yesterday.toISOString().slice(0, 10);
+    p.streak = p.lastDay === yISO ? (p.streak || 0) + 1 : 1;
+    p.lastDay = today;
+    next[id] = p;
+    await saveProfiles(next);
+  };
+
+  // week is optional - defaults to the current week, or pass a past week's ISO string to
+  // reopen an already-written story from the library.
+  const openChild = async (id, week) => {
     setActiveChild(id);
     setView("reader");
     setError(null);
     const child = profiles[id];
-    const week = isoWeek();
-    const key = storyKey(id, week);
+    const targetWeek = week || isoWeek();
+    const key = storyKey(id, targetWeek);
     let cached = await loadKey(key, null);
     if (!cached) {
+      if (targetWeek !== isoWeek()) {
+        setError("That story isn't available any more.");
+        return;
+      }
       setLoading(true);
       setLoadMsg("Looking for this week's story...");
       try {
-        const s = await generateStoryFromLibrary(child, week, (msg) => setLoadMsg(msg));
+        const s = await generateStoryFromLibrary(child, targetWeek, (msg) => setLoadMsg(msg));
         await saveKey(key, s);
         cached = s;
       } catch (e) {
@@ -6206,23 +7315,19 @@ function ReadingApp() {
       setLoading(false);
     }
     setStory(cached);
+    markReadToday(id);
   };
 
-  const awardCompletion = async (id, week) => {
+  const awardCompletion = async (id, week, title) => {
     const next = { ...profiles };
     const p = { ...next[id] };
     // Avoid double-awarding if the same week has already been completed
     const alreadyAwarded = (p.collection || []).some(c => c.week === week);
     if (alreadyAwarded) return;
     p.storiesRead = (p.storiesRead || 0) + 1;
-    const today = new Date().toISOString().slice(0, 10);
-    if (p.lastDay !== today) {
-      p.streak = (p.streak || 0) + 1;
-      p.lastDay = today;
-    }
     p.collection = [
       ...(p.collection || []),
-      { id: week, emoji: critterFor(p, (p.collection || []).length), week },
+      { id: week, emoji: critterFor(p, (p.collection || []).length), week, title: title || null },
     ];
     next[id] = p;
     await saveProfiles(next);
@@ -6254,6 +7359,7 @@ function ReadingApp() {
           syncMode={syncMode}
           onOpen={openChild}
           onProgress={(id) => { setActiveChild(id); setView("progress"); }}
+          onLibrary={(id) => { setActiveChild(id); setView("library"); }}
           onSettings={() => setView("settings")}
         />
       )}
@@ -6278,7 +7384,7 @@ function ReadingApp() {
           error={error}
           onBack={backHome}
           onProgressOpen={() => setView("progress")}
-          onComplete={() => awardCompletion(activeChild, story?.week)}
+          onComplete={() => awardCompletion(activeChild, story?.week, story?.title)}
           onRegenerate={async () => {
             const week = isoWeek();
             const key = storyKey(activeChild, week);
@@ -6304,12 +7410,20 @@ function ReadingApp() {
           onBack={backHome}
         />
       )}
+
+      {view === "library" && (
+        <Library
+          child={profiles[activeChild]}
+          onOpen={(week) => openChild(activeChild, week)}
+          onBack={backHome}
+        />
+      )}
     </div>
   );
 }
 
 /* ============================ HOME ============================ */
-function Home({ profiles, hasApiKey, syncMode, onOpen, onProgress, onSettings }) {
+function Home({ profiles, hasApiKey, syncMode, onOpen, onProgress, onLibrary, onSettings }) {
   const today = new Date();
   const nextMon = nextMonday(today);
   const isMonday = today.getDay() === 1;
@@ -6378,6 +7492,9 @@ function Home({ profiles, hasApiKey, syncMode, onOpen, onProgress, onSettings })
                 </div>
                 <button style={{ ...S.openBtn, background: band.colour }} onClick={() => onOpen(id)}>
                   <BookOpen size={18}/> Open this week's book
+                </button>
+                <button style={S.linkBtn} onClick={() => onLibrary(id)}>
+                  <BookOpen size={14}/> {c.name}'s story library →
                 </button>
                 <button style={S.linkBtn} onClick={() => onProgress(id)}>
                   See {c.name}'s collection →
@@ -6702,7 +7819,7 @@ function Reader({ child, story, loading, loadMsg, error, onBack, onProgressOpen,
   return (
     <div style={S.readerWrap}>
       <div style={S.readerTop}>
-        <button onClick={onBack} style={S.backTopBtn}><ArrowLeft size={16}/> Library</button>
+<button onClick={onBack} style={S.backTopBtn}><ArrowLeft size={16}/> Home</button>
         <div style={{ ...S.readerCrumb, color: band.colour }}>
           <span style={{ ...S.bandDot, background: band.colour }}/>
           {band.name} · {child.name}
@@ -6790,6 +7907,7 @@ function Reader({ child, story, loading, loadMsg, error, onBack, onProgressOpen,
           answered={answeredQuestions}
           onProgressOpen={onProgressOpen}
           onBack={onBack}
+          onReadAgain={() => setPageIdx(0)}
         />
       )}
     </div>
@@ -6908,7 +8026,7 @@ function QuestionModal({ question, band, onAnswer, onClose }) {
 }
 
 /* ============================ FINISH OVERLAY ============================ */
-function FinishOverlay({ child, band, story, answered, onProgressOpen, onBack }) {
+function FinishOverlay({ child, band, story, answered, onProgressOpen, onBack, onReadAgain }) {
   const totalQ = story.pages.filter(p => p.question).length;
   const correct = Object.values(answered).filter(a => a.correct).length;
   const newCritter = (child.collection && child.collection[child.collection.length - 1])
@@ -6916,8 +8034,8 @@ function FinishOverlay({ child, band, story, answered, onProgressOpen, onBack })
     : "⭐";
 
   return (
-    <div style={S.modalBg}>
-      <div style={{ ...S.modal, maxWidth: 460 }}>
+    <div style={S.modalBg} onClick={onReadAgain}>
+      <div style={{ ...S.modal, maxWidth: 460 }} onClick={(e) => e.stopPropagation()}>
         <div style={{ ...S.modalTop, background: band.colour, padding: "24px 24px" }}>
           <div style={{ display:"flex", alignItems:"center", justifyContent:"center", flex:1, flexDirection:"column" }}>
             <div style={S.finishCritter}>{newCritter}</div>
@@ -6943,14 +8061,17 @@ function FinishOverlay({ child, band, story, answered, onProgressOpen, onBack })
             </div>
           </div>
           <p style={S.finishNext}>
-            Come back on <strong>Monday</strong> for a brand-new story.
+            Come back on <strong>Monday</strong> for a brand-new story - or read this one again any time from the library.
           </p>
+          <button style={{ ...S.linkBtn, width: "100%", justifyContent: "center", marginBottom: 8 }} onClick={onReadAgain}>
+            <RefreshCw size={16}/> Read again
+          </button>
           <div style={{ display: "flex", gap: 8 }}>
             <button style={{ ...S.openBtn, background: band.colour, flex: 1 }} onClick={onProgressOpen}>
               <Award size={16}/> See collection
             </button>
             <button style={{ ...S.linkBtn, flex: 1, justifyContent: "center" }} onClick={onBack}>
-              <HomeBack size={16}/> Library
+              <HomeBack size={16}/> Home
             </button>
           </div>
         </div>
@@ -6970,7 +8091,7 @@ function Progress({ child, onBack }) {
   return (
     <div style={S.progressWrap}>
       <div style={S.readerTop}>
-        <button onClick={onBack} style={S.backTopBtn}><ArrowLeft size={16}/> Library</button>
+<button onClick={onBack} style={S.backTopBtn}><ArrowLeft size={16}/> Home</button>
         <div style={{ ...S.readerCrumb, color: band.colour }}>
           <span style={{ ...S.bandDot, background: band.colour }}/>
           {child.name}'s progress
@@ -7020,6 +8141,63 @@ function Progress({ child, onBack }) {
           <SkillCard icon={<Brain size={20}/>} colour="#8338EC" name="Inference"
             desc="Working out things the book doesn't say directly."/>
         </div>
+      </section>
+    </div>
+  );
+}
+
+/* ============================ LIBRARY ============================ */
+function Library({ child, onOpen, onBack }) {
+  const band = BANDS[bandForChild(child)];
+  const entries = [...(child.collection || [])].sort((a, b) => (a.week < b.week ? 1 : -1));
+
+  return (
+    <div style={S.progressWrap}>
+      <div style={S.readerTop}>
+        <button onClick={onBack} style={S.backTopBtn}><ArrowLeft size={16}/> Home</button>
+        <div style={{ ...S.readerCrumb, color: band.colour }}>
+          <span style={{ ...S.bandDot, background: band.colour }}/>
+          {child.name}'s story library
+        </div>
+        <div style={{ width: 80 }}/>
+      </div>
+
+      <header style={S.progressHero}>
+        <BookOpen size={60} color={band.colour}/>
+        <div>
+          <h1 style={{ ...S.h1, fontSize: 32, margin: 0 }}>Story library</h1>
+          <p style={S.subtitle}>Every story {child.name} has finished, ready to open again any time.</p>
+        </div>
+      </header>
+
+      <section style={{ ...S.collectionWrap, marginBottom: 40 }}>
+        {entries.length === 0 ? (
+          <div style={{ padding: "32px 20px", textAlign: "center", color: "#7A6A55" }}>
+            <BookOpen size={32} color="#D9CBB0" style={{ marginBottom: 10 }}/>
+            <p>No stories finished yet - {child.name}'s first book will land here once it's done.</p>
+          </div>
+        ) : (
+          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            {entries.map(entry => (
+              <button
+                key={entry.week}
+                onClick={() => onOpen(entry.week)}
+                style={{
+                  display: "flex", alignItems: "center", gap: 14,
+                  background: "#FFFDF8", border: "1px solid #E9DFC8", borderRadius: 14,
+                  padding: "14px 16px", textAlign: "left", cursor: "pointer",
+                }}
+              >
+                <span style={{ fontSize: 30 }}>{entry.emoji}</span>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontWeight: 700, color: "#2C2316" }}>{entry.title || "A story"}</div>
+                  <div style={{ fontSize: 12, color: "#8A7A63" }}>Week of {prettyDate(mondayOfIsoWeek(entry.week))}</div>
+                </div>
+                <ChevronRight size={18} color="#B8A98A"/>
+              </button>
+            ))}
+          </div>
+        )}
       </section>
     </div>
   );
