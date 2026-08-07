@@ -3386,6 +3386,8 @@ const Star = (p) => (<_IconBase {...p}><polygon points="12 2 15.09 8.26 22 9.27 
 const Trophy = (p) => (<_IconBase {...p}><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></_IconBase>);
 const Volume2 = (p) => (<_IconBase {...p}><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></_IconBase>);
 const VolumeX = (p) => (<_IconBase {...p}><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><line x1="22" x2="16" y1="9" y2="15"/><line x1="16" x2="22" y1="9" y2="15"/></_IconBase>);
+// Pencil = the Phonics & Spelling app (writing), mirroring the book icon that app uses to come here (reading)
+const Pencil = (p) => (<_IconBase {...p}><path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z"/><path d="m15 5 4 4"/></_IconBase>);
 const X = (p) => (<_IconBase {...p}><path d="M18 6 6 18"/><path d="m6 6 12 12"/></_IconBase>);
 
 
@@ -7432,12 +7434,29 @@ function Home({ profiles, hasApiKey, syncMode, onOpen, onProgress, onLibrary, on
 
   return (
     <div style={S.homeWrap}>
+      {/* Top bar: brand on the left, app actions grouped top-right */}
+      <div style={S.topBar}>
+        <div style={S.brandBadge}>
+          <BookOpen size={18} strokeWidth={2.5}/>
+          <span>STORY LIBRARY</span>
+        </div>
+        <div style={S.topBarActions}>
+          <button
+            onClick={() => typeof window !== "undefined" && window._switchApp && window._switchApp()}
+            style={S.topIconBtn}
+            aria-label="Go to Phonics & Spelling"
+            title="Go to Phonics & Spelling"
+          >
+            <Pencil size={18}/>
+          </button>
+          <button onClick={onSettings} style={S.topIconBtn} aria-label="Settings" title="Settings">
+            <Cog size={18}/>
+          </button>
+        </div>
+      </div>
+
       <header style={S.header}>
         <div style={S.titleStack}>
-          <div style={S.brandBadge}>
-            <BookOpen size={18} strokeWidth={2.5}/>
-            <span>STORY LIBRARY</span>
-          </div>
           <h1 style={S.h1}>
             This week's <em style={S.emText}>story</em> is ready
           </h1>
@@ -7452,21 +7471,9 @@ function Home({ profiles, hasApiKey, syncMode, onOpen, onProgress, onLibrary, on
                 : <>Next new story arrives <strong>{prettyDate(nextMon)}</strong></>}
             </span>
           </div>
-          
         </div>
 
-        <div style={S.decoStack}>
-          <button
-            onClick={() => typeof window !== "undefined" && window._switchApp && window._switchApp()}
-            style={{ ...S.settingsBtn, top: 0 }}
-            aria-label="Go to Phonics & Spelling"
-            title="Go to Phonics & Spelling"
-          >
-            <Sparkles size={18}/>
-          </button>
-          <button onClick={onSettings} style={{ ...S.settingsBtn, top: 44 }} aria-label="Settings">
-            <Cog size={18}/>
-          </button>
+        <div className="deco-stack" style={S.decoStack}>
           <DecoBook colour="#E76F51"/>
           <DecoBook colour="#2A9D8F"/>
           <DecoBook colour="#F4A261"/>
@@ -7495,12 +7502,14 @@ function Home({ profiles, hasApiKey, syncMode, onOpen, onProgress, onLibrary, on
                 <button style={{ ...S.openBtn, background: band.colour }} onClick={() => onOpen(id)}>
                   <BookOpen size={18}/> Open this week's book
                 </button>
-                <button style={S.linkBtn} onClick={() => onLibrary(id)}>
-                  <BookOpen size={14}/> {c.name}'s story library →
-                </button>
-                <button style={S.linkBtn} onClick={() => onProgress(id)}>
-                  See {c.name}'s collection →
-                </button>
+                <div style={S.cardActions}>
+                  <button style={S.cardActionBtn} onClick={() => onLibrary(id)}>
+                    <BookOpen size={16}/> Library
+                  </button>
+                  <button style={S.cardActionBtn} onClick={() => onProgress(id)}>
+                    <Award size={16}/> Collection
+                  </button>
+                </div>
               </div>
             </article>
           );
@@ -8250,6 +8259,11 @@ function GoogleFontsAndCss() {
         @media (min-width: 720px) {
           .home-header { flex-wrap: nowrap !important; }
         }
+        /* The decorative books are pure ornament - on a phone they only push the
+           child cards (the actual thing you came here to tap) below the fold. */
+        @media (max-width: 719px) {
+          .deco-stack { display: none !important; }
+        }
       `}</style>
     </>
   );
@@ -8314,8 +8328,22 @@ const S = {
   },
 
   /* HOME */
-  homeWrap: { maxWidth: 1000, margin: "0 auto", padding: "32px 22px 60px" },
-  header: { display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginBottom: 28, flexWrap: "wrap", gap: 20 },
+  homeWrap: { maxWidth: 1000, margin: "0 auto", padding: "18px 22px 60px" },
+  topBar: { display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginBottom: 18 },
+  cardActions: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginTop: 10 },
+  cardActionBtn: {
+    background: "#FBF6E9", border: "1px solid #E8DEC4", borderRadius: 12,
+    padding: "11px 8px", fontWeight: 700, fontSize: 14, color: "#5C4A3A",
+    cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
+  },
+  topBarActions: { display: "flex", gap: 8, flexShrink: 0 },
+  topIconBtn: {
+    width: 42, height: 42, borderRadius: 12,
+    background: "rgba(255,255,255,0.8)", border: "1px solid rgba(0,0,0,0.08)",
+    display: "grid", placeItems: "center", cursor: "pointer", color: "#2C2316",
+    boxShadow: "0 1px 3px rgba(0,0,0,0.06)",
+  },
+  header: { display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginBottom: 22, flexWrap: "wrap", gap: 20 },
   titleStack: { maxWidth: 580 },
   brandBadge: {
     display: "inline-flex", alignItems: "center", gap: 8,
@@ -8325,7 +8353,7 @@ const S = {
   },
   h1: {
     fontFamily: "'Fraunces', Georgia, serif",
-    fontSize: 48, lineHeight: 1.05, margin: "14px 0 8px",
+    fontSize: 34, lineHeight: 1.1, margin: "0 0 6px",
     fontWeight: 900, letterSpacing: -1,
   },
   emText: {
@@ -8340,7 +8368,7 @@ const S = {
     padding: "8px 14px", borderRadius: 12,
     fontSize: 14, color: "#5C4A3A",
   },
-  decoStack: { display: "flex", marginRight: 10, position: "relative", paddingTop: 88 },
+  decoStack: { display: "flex", marginRight: 10, position: "relative" },
 
   cardsGrid: {
     display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(290px, 1fr))",
