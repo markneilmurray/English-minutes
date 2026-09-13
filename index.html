@@ -575,8 +575,10 @@ const speak = (text) => {
       } else {
         u.lang = "en-GB";
       }
-      u.rate = 0.9;
-      u.pitch = 1.05;
+      // Slightly slower and at a neutral pitch - a raised pitch and quicker rate made the
+      // default synthetic voice noticeably harder to follow, especially for spelling words.
+      u.rate = 0.82;
+      u.pitch = 1.0;
       u.volume = 1.0;
       window.speechSynthesis.speak(u);
     }, 60);
@@ -710,6 +712,88 @@ const PHASE5 = [
 
 // Days of the week & months (capital letter rule)
 const CAPITAL_WORDS = ["Monday","Tuesday","Wednesday","London","Charlie","Freddie","England","July","Easter","Christmas","Hannah"];
+
+/* ============================ Y2 CURRICULUM DATA ============================ */
+// National Curriculum (England) Year 2 statutory common exception words, each paired with
+// a short example sentence. The sentence lets spelling audio say "word - sentence - word",
+// the standard spelling-test cadence, which is both clearer to a child's ear than the bare
+// word alone and gives it real context.
+const Y2_CEW = [
+  { word: "door", example: "Please shut the door." },
+  { word: "floor", example: "The toy fell on the floor." },
+  { word: "poor", example: "The poor dog was hungry." },
+  { word: "because", example: "I was late because of the rain." },
+  { word: "find", example: "Can you find my shoe?" },
+  { word: "kind", example: "She was very kind to me." },
+  { word: "mind", example: "Do you mind if I sit here?" },
+  { word: "behind", example: "The cat hid behind the sofa." },
+  { word: "child", example: "Every child loves a good story." },
+  { word: "children", example: "The children played in the park." },
+  { word: "wild", example: "We saw a wild fox in the garden." },
+  { word: "climb", example: "Let's climb to the top of the hill." },
+  { word: "most", example: "Most of the cake was eaten." },
+  { word: "only", example: "I only have one pencil left." },
+  { word: "both", example: "Both of my shoes are muddy." },
+  { word: "old", example: "The old bridge creaked loudly." },
+  { word: "cold", example: "It was very cold this morning." },
+  { word: "gold", example: "The ring was made of gold." },
+  { word: "hold", example: "Please hold my hand crossing the road." },
+  { word: "told", example: "She told me a funny joke." },
+  { word: "every", example: "Every star was shining brightly." },
+  { word: "everybody", example: "Everybody clapped at the end." },
+  { word: "even", example: "Even the baby laughed." },
+  { word: "great", example: "That was a great goal!" },
+  { word: "break", example: "Don't break the glass." },
+  { word: "pretty", example: "The garden looked pretty in spring." },
+  { word: "beautiful", example: "The sunset was beautiful tonight." },
+  { word: "after", example: "We will play after dinner." },
+  { word: "fast", example: "The rabbit ran very fast." },
+  { word: "last", example: "This is the last biscuit." },
+  { word: "past", example: "The bus has already gone past." },
+  { word: "father", example: "My father cooked breakfast today." },
+  { word: "class", example: "Our class went on a trip." },
+  { word: "grass", example: "The grass was wet with dew." },
+  { word: "pass", example: "Can you pass the salt, please?" },
+  { word: "plant", example: "We will plant seeds in the garden." },
+  { word: "path", example: "Follow the path through the woods." },
+  { word: "hour", example: "It took an hour to get there." },
+  { word: "move", example: "Please move your chair closer." },
+  { word: "prove", example: "Can you prove that it works?" },
+  { word: "sure", example: "Are you sure about that answer?" },
+  { word: "sugar", example: "I added sugar to my tea." },
+  { word: "eye", example: "She winked one eye at me." },
+  { word: "could", example: "I could hear music playing." },
+  { word: "should", example: "You should wear a coat today." },
+  { word: "would", example: "Would you like some water?" },
+  { word: "who", example: "Who is knocking at the door?" },
+  { word: "whole", example: "He ate the whole apple." },
+  { word: "any", example: "Do you have any pencils spare?" },
+  { word: "many", example: "There were many birds in the tree." },
+  { word: "clothes", example: "Put your clothes in the drawer." },
+  { word: "busy", example: "The shop was very busy today." },
+  { word: "people", example: "Lots of people were at the park." },
+  { word: "water", example: "Please drink some water." },
+  { word: "again", example: "Can we play that game again?" },
+  { word: "half", example: "I ate half of the sandwich." },
+  { word: "money", example: "She saved her money in a jar." },
+];
+
+// Year 2 spelling rule: adding the suffixes -ment, -ness, -ful, -less and -ly to a root word
+// (National Curriculum Appendix 1, Year 2). Each entry also carries an example sentence.
+const Y2_SUFFIX_WORDS = [
+  { root: "enjoy", suffix: "-ment", word: "enjoyment", example: "Reading is a great source of enjoyment." },
+  { root: "excite", suffix: "-ment", word: "excitement", example: "There was excitement in the classroom." },
+  { root: "sad", suffix: "-ness", word: "sadness", example: "She felt sadness when her toy broke." },
+  { root: "kind", suffix: "-ness", word: "kindness", example: "Thank you for your kindness." },
+  { root: "care", suffix: "-ful", word: "careful", example: "Be careful crossing the road." },
+  { root: "hope", suffix: "-ful", word: "hopeful", example: "I am hopeful it will be sunny." },
+  { root: "help", suffix: "-less", word: "helpless", example: "The kitten looked helpless in the rain." },
+  { root: "hope", suffix: "-less", word: "hopeless", example: "It felt hopeless at first, but we tried again." },
+  { root: "quick", suffix: "-ly", word: "quickly", example: "She ran quickly to catch the bus." },
+  { root: "sad", suffix: "-ly", word: "sadly", example: "He sadly said goodbye to his friend." },
+  { root: "sudden", suffix: "-ly", word: "suddenly", example: "Suddenly, the lights went out." },
+  { root: "brave", suffix: "-ly", word: "bravely", example: "She bravely climbed the tall tree." },
+];
 
 /* ============================ PRESCHOOL DATA ============================ */
 // Phase 2 letters (in teaching order)
@@ -1238,6 +1322,36 @@ function qCewMissing(rng, pool) {
   };
 }
 
+/* ============================ Y2 QUESTION GENERATORS ============================ */
+// Both Year 2 spelling generators speak "word - example sentence - word", the standard
+// spelling-test cadence: it's clearer to a child's ear than the bare word alone, and the
+// sentence gives it real context.
+function qYear2CewSpell(rng, pool) {
+  const item = pick(pool, rng);
+  return {
+    subject: "spelling",
+    type: "spell",
+    prompt: `Spell the word you hear:`,
+    audio: `Spell the word ${item.word}. For example: ${item.example}. Spell the word ${item.word}.`,
+    spoken: item.word,
+    answer: item.word,
+    mode: "type",
+  };
+}
+
+function qYear2Suffix(rng) {
+  const item = pick(Y2_SUFFIX_WORDS, rng);
+  return {
+    subject: "spelling",
+    type: "spell_suffix",
+    prompt: `Spell the word you hear (add ${item.suffix} to "${item.root}"):`,
+    audio: `Spell the word ${item.word}. For example: ${item.example}. Spell the word ${item.word}.`,
+    spoken: item.word,
+    answer: item.word,
+    mode: "type",
+  };
+}
+
 /* ============================ PRESCHOOL QUESTION GENERATORS ============================ */
 function qLetterName(rng) {
   const letter = pick(PHASE2, rng);
@@ -1430,6 +1544,45 @@ function generatePreschoolDay(rng, term, subjects) {
   ];
 }
 
+function generateY2Day(rng, term, subjects) {
+  // Phonics, grammar and punctuation still draw on the Year 1 generators for now (they're
+  // broadly pitched at KS1 and give continuity) - but spelling is now genuinely Year 2:
+  // the National Curriculum Year 2 common exception words, plus the -ment/-ness/-ful/-less/-ly
+  // suffix rule that's specific to Year 2.
+  const generators = [
+    { subject: "phonics", make: () => qPhonicsGrapheme(rng) },
+    { subject: "phonics", make: () => qPhonicsFindWord(rng) },
+    { subject: "spelling", make: () => qYear2CewSpell(rng, Y2_CEW) },
+    { subject: "spelling", make: () => qYear2CewSpell(rng, Y2_CEW) },
+    { subject: "spelling", make: () => qYear2Suffix(rng) },
+    { subject: "punctuation", make: () => qFullStopOrQuestion(rng) },
+    { subject: "punctuation", make: () => qCapital(rng) },
+    { subject: "grammar", make: () => qPlural(rng) },
+    { subject: "grammar", make: () => qSuffixIng(rng) },
+  ];
+  if (term === "summer") {
+    generators.push({ subject: "grammar", make: () => qSuffixEd(rng) });
+    generators.push({ subject: "grammar", make: () => qPrefixUn(rng) });
+    generators.push({ subject: "punctuation", make: () => qExclaim(rng) });
+    generators.push({ subject: "grammar", make: () => qConjunction(rng) });
+    generators.push({ subject: "grammar", make: () => qWordClass(rng) });
+  }
+
+  const main = [];
+  const shuffled = shuffle(weightedGeneratorPool(generators, subjects), rng);
+  for (let i = 0; i < 10; i++) {
+    const gen = shuffled[i % shuffled.length];
+    main.push(gen());
+  }
+
+  const challenger = [qYear2Suffix(rng), qYear2CewSpell(rng, Y2_CEW)];
+
+  return [
+    ...main.map((q, i) => ({ ...q, idx: i, challenger: false })),
+    ...challenger.map((q, i) => ({ ...q, idx: 10 + i, challenger: true })),
+  ];
+}
+
 // ============================================================
 // Year-level auto-progression
 // Each profile has a "yearStart" date - the academic year (Sept-Aug) in which they
@@ -1461,11 +1614,12 @@ function getCurrentLevel(profile) {
 }
 
 // Map a level to a content tier - what curriculum bucket to actually use.
-// We have preschool and year1 content. Reception uses preschool, Year 2+ uses year1
-// (until we build out dedicated content).
+// We have preschool, year1 and year2 content. Reception uses preschool. Year 3+ uses year2
+// (until we build out dedicated content further up).
 function getContentTier(level) {
   if (level === "preschool" || level === "reception") return "preschool";
-  return "year1";
+  if (level === "year1") return "year1";
+  return "year2";
 }
 
 function getLevelLabel(level) {
@@ -1503,9 +1657,9 @@ function generateDay(profile, dateISO) {
   let term = getTerm(new Date(dateISO + "T00:00:00"));
   if (isReadyForChallenge(profile)) term = NEXT_TERM[term] || term;
   const tier = getContentTier(getCurrentLevel(profile));
-  return tier === "preschool"
-    ? generatePreschoolDay(rng, term, profile.subjects)
-    : generateY1Day(rng, term, profile.subjects);
+  if (tier === "preschool") return generatePreschoolDay(rng, term, profile.subjects);
+  if (tier === "year2") return generateY2Day(rng, term, profile.subjects);
+  return generateY1Day(rng, term, profile.subjects);
 }
 
 /* ============================ UI: ROOT ============================ */
