@@ -557,30 +557,46 @@ if (typeof window !== "undefined" && window.speechSynthesis) {
   });
 }
 
+const _makeUtterance = (text, rate) => {
+  const u = new SpeechSynthesisUtterance(text);
+  // Re-pick if we haven't got a British voice yet (voices may have loaded since)
+  if (!_cachedVoice || (_cachedVoice.lang !== "en-GB" && _cachedVoice.lang !== "en_GB")) {
+    const fresh = _pickVoice();
+    if (fresh) _cachedVoice = fresh;
+  }
+  if (_cachedVoice) {
+    u.voice = _cachedVoice;
+    u.lang = _cachedVoice.lang;
+  } else {
+    u.lang = "en-GB";
+  }
+  // Slightly slower and at a neutral pitch - a raised pitch and quicker rate made the
+  // default synthetic voice noticeably harder to follow, especially for spelling words.
+  u.rate = rate;
+  u.pitch = 1.0;
+  u.volume = 1.0;
+  return u;
+};
+
 const speak = (text) => {
   if (typeof window === "undefined" || !window.speechSynthesis) return;
   try {
     window.speechSynthesis.cancel();
     // Small delay so cancel completes before new utterance starts (prevents cut-offs)
     setTimeout(() => {
-      const u = new SpeechSynthesisUtterance(text);
-      // Re-pick if we haven't got a British voice yet (voices may have loaded since)
-      if (!_cachedVoice || (_cachedVoice.lang !== "en-GB" && _cachedVoice.lang !== "en_GB")) {
-        const fresh = _pickVoice();
-        if (fresh) _cachedVoice = fresh;
-      }
-      if (_cachedVoice) {
-        u.voice = _cachedVoice;
-        u.lang = _cachedVoice.lang;
-      } else {
-        u.lang = "en-GB";
-      }
-      // Slightly slower and at a neutral pitch - a raised pitch and quicker rate made the
-      // default synthetic voice noticeably harder to follow, especially for spelling words.
-      u.rate = 0.82;
-      u.pitch = 1.0;
-      u.volume = 1.0;
-      window.speechSynthesis.speak(u);
+      window.speechSynthesis.speak(_makeUtterance(text, 0.82));
+    }, 60);
+  } catch {}
+};
+
+// Speak several pieces back to back (queued, not cancelling each other) - used to run the
+// individual sounds of a word together and then say the whole word, for blending practice.
+const speakSequence = (parts, rate = 0.75) => {
+  if (typeof window === "undefined" || !window.speechSynthesis) return;
+  try {
+    window.speechSynthesis.cancel();
+    setTimeout(() => {
+      parts.forEach(p => window.speechSynthesis.speak(_makeUtterance(p, rate)));
     }, 60);
   } catch {}
 };
@@ -820,6 +836,66 @@ const PHASE3 = [
   { g: "oo", words: ["look","book","good","took"] },
 ];
 const CVC = ["cat","dog","pig","hat","mum","dad","sun","bed","cup","ten","big","red","fox","bus","jam","top","pet","leg","run","sit","map","tin","mud","wet","hop","nap","bag","cap","fan","kid","log","pan"];
+
+// Blending practice: what to *say* for each letter card. Browsers' speech voices read an
+// isolated letter by its NAME ("dee"), so each sound is respelled as a short syllable the voice
+// can actually pronounce ("duh"). These are best-effort - voices differ, and the short vowels
+// (a, o) are the hardest to get right - so tune this one table if a sound doesn't ring true.
+const PHONEME_SAY = {
+  s: "suh", a: "ah", t: "tuh", p: "puh", i: "ih", n: "nuh", m: "muh", d: "duh", g: "guh",
+  o: "aw", c: "kuh", k: "kuh", u: "uh", b: "buh", e: "eh", l: "luh", f: "fuh", h: "huh", r: "ruh",
+  sh: "shh", ch: "chuh", th: "thuh", ng: "ing", ck: "kuh", ll: "luh",
+  ee: "ee", oo: "oo", ai: "ay", oa: "oh", ar: "ar",
+};
+const soundFor = (unit) => PHONEME_SAY[unit] || unit;
+
+// Words to blend, split into the cards a child taps (a digraph like "sh" is ONE card).
+// Phase 2 words use only the letters taught first; digraph words come in from spring.
+const BLEND_WORDS_PHASE2 = [
+  { word: "dog", units: ["d","o","g"], emoji: "🐶" },
+  { word: "cat", units: ["c","a","t"], emoji: "🐱" },
+  { word: "pig", units: ["p","i","g"], emoji: "🐷" },
+  { word: "hen", units: ["h","e","n"], emoji: "🐔" },
+  { word: "sun", units: ["s","u","n"], emoji: "☀️" },
+  { word: "bus", units: ["b","u","s"], emoji: "🚌" },
+  { word: "bed", units: ["b","e","d"], emoji: "🛏️" },
+  { word: "hat", units: ["h","a","t"], emoji: "🎩" },
+  { word: "cap", units: ["c","a","p"], emoji: "🧢" },
+  { word: "bag", units: ["b","a","g"], emoji: "👜" },
+  { word: "map", units: ["m","a","p"], emoji: "🗺️" },
+  { word: "pin", units: ["p","i","n"], emoji: "📌" },
+  { word: "tin", units: ["t","i","n"], emoji: "🥫" },
+  { word: "pan", units: ["p","a","n"], emoji: "🍳" },
+  { word: "mug", units: ["m","u","g"], emoji: "☕" },
+  { word: "cup", units: ["c","u","p"], emoji: "🥤" },
+  { word: "leg", units: ["l","e","g"], emoji: "🦵" },
+  { word: "log", units: ["l","o","g"], emoji: "🪵" },
+  { word: "net", units: ["n","e","t"], emoji: "🥅" },
+  { word: "mum", units: ["m","u","m"], emoji: "👩" },
+  { word: "dad", units: ["d","a","d"], emoji: "👨" },
+  { word: "bat", units: ["b","a","t"], emoji: "🦇" },
+  { word: "rat", units: ["r","a","t"], emoji: "🐀" },
+  { word: "pot", units: ["p","o","t"], emoji: "🍲" },
+];
+const BLEND_WORDS_DIGRAPH = [
+  { word: "ship", units: ["sh","i","p"], emoji: "🚢" },
+  { word: "fish", units: ["f","i","sh"], emoji: "🐟" },
+  { word: "chip", units: ["ch","i","p"], emoji: "🍟" },
+  { word: "shop", units: ["sh","o","p"], emoji: "🏪" },
+  { word: "duck", units: ["d","u","ck"], emoji: "🦆" },
+  { word: "sock", units: ["s","o","ck"], emoji: "🧦" },
+  { word: "moon", units: ["m","oo","n"], emoji: "🌙" },
+  { word: "rain", units: ["r","ai","n"], emoji: "🌧️" },
+  { word: "boat", units: ["b","oa","t"], emoji: "⛵" },
+  { word: "tree", units: ["t","r","ee"], emoji: "🌳" },
+  { word: "sheep", units: ["sh","ee","p"], emoji: "🐑" },
+  { word: "king", units: ["k","i","ng"], emoji: "👑" },
+  { word: "ring", units: ["r","i","ng"], emoji: "💍" },
+  { word: "bell", units: ["b","e","ll"], emoji: "🔔" },
+  { word: "star", units: ["s","t","ar"], emoji: "⭐" },
+  { word: "frog", units: ["f","r","o","g"], emoji: "🐸" },
+  { word: "drum", units: ["d","r","u","m"], emoji: "🥁" },
+];
 
 // Rhyming pairs
 const RHYMES = [
@@ -1326,26 +1402,63 @@ function qCewMissing(rng, pool) {
 // Both Year 2 spelling generators speak "word - example sentence - word", the standard
 // spelling-test cadence: it's clearer to a child's ear than the bare word alone, and the
 // sentence gives it real context.
-function qYear2CewSpell(rng, pool) {
-  const item = pick(pool, rng);
+// Pick an item, retrying a few times so the same word doesn't come up twice in one day.
+// `used` is a Set shared across a day's generators; `key` says what identifies an item.
+function pickFresh(arr, rng, used, key) {
+  let item = pick(arr, rng);
+  for (let i = 0; i < 8 && used && used.has(key(item)); i++) item = pick(arr, rng);
+  if (used) used.add(key(item));
+  return item;
+}
+
+// Year 2 words get harder as the year goes on: the first term sticks to the core word
+// families (-ind, -ild, -old and friends); later terms bring in the rest of the list.
+// (Indexes into Y2_CEW - the list is in National Curriculum order.)
+function y2WordPool(term) {
+  if (term === "autumn") return Y2_CEW.slice(0, 30);
+  if (term === "spring") return Y2_CEW.slice(0, 45);
+  return Y2_CEW;
+}
+
+function qYear2CewSpell(rng, pool, used) {
+  const item = pickFresh(pool, rng, used, (w) => w.word);
   return {
     subject: "spelling",
     type: "spell",
     prompt: `Spell the word you hear:`,
-    audio: `Spell the word ${item.word}. For example: ${item.example}. Spell the word ${item.word}.`,
+    audio: `Spell the word ${item.word}. For example: ${item.example} Spell the word ${item.word}.`,
     spoken: item.word,
     answer: item.word,
     mode: "type",
   };
 }
 
-function qYear2Suffix(rng) {
-  const item = pick(Y2_SUFFIX_WORDS, rng);
+// Show a Year 2 word with one letter missing; the child types the missing letter. The first
+// letter is never the one hidden (it's the strongest clue), so the gap lands on the tricky
+// middle/ending letters where Year 2 spelling mistakes actually happen.
+function qYear2Missing(rng, pool, used) {
+  const item = pickFresh(pool, rng, used, (w) => w.word);
+  const target = item.word;
+  const idx = 1 + Math.floor(rng() * (target.length - 1));
+  return {
+    subject: "spelling",
+    type: "spell_missing",
+    prompt: `Fill in the missing letter:`,
+    word: target.slice(0, idx) + "_" + target.slice(idx + 1),
+    full: target,
+    audio: `Fill in the missing letter in the word ${target}. For example: ${item.example} The word is ${target}.`,
+    answer: target[idx],
+    mode: "type",
+  };
+}
+
+function qYear2Suffix(rng, used) {
+  const item = pickFresh(Y2_SUFFIX_WORDS, rng, used, (w) => w.word);
   return {
     subject: "spelling",
     type: "spell_suffix",
     prompt: `Spell the word you hear (add ${item.suffix} to "${item.root}"):`,
-    audio: `Spell the word ${item.word}. For example: ${item.example}. Spell the word ${item.word}.`,
+    audio: `Spell the word ${item.word}. For example: ${item.example} Spell the word ${item.word}.`,
     spoken: item.word,
     answer: item.word,
     mode: "type",
@@ -1353,6 +1466,24 @@ function qYear2Suffix(rng) {
 }
 
 /* ============================ PRESCHOOL QUESTION GENERATORS ============================ */
+// Blending practice (interactive, mode "blend"): the child turns over each letter card in
+// order to hear its sound, then blends them into the word. Rendered by <BlendCards>.
+function qBlend(rng, term, used) {
+  const pool = term === "autumn" ? BLEND_WORDS_PHASE2 : BLEND_WORDS_PHASE2.concat(BLEND_WORDS_DIGRAPH);
+  const item = pickFresh(pool, rng, used, (w) => w.word);
+  return {
+    subject: "phonics",
+    type: "blend",
+    mode: "blend",
+    prompt: `Turn over each card, then blend the sounds into a word!`,
+    audio: `Tap the glowing card to turn it over and hear its sound.`,
+    units: item.units,
+    blendWord: item.word,
+    emoji: item.emoji,
+    answer: item.word,
+  };
+}
+
 function qLetterName(rng) {
   const letter = pick(PHASE2, rng);
   const distractors = sample(PHASE2.filter(l => l !== letter), 3, rng);
@@ -1515,13 +1646,17 @@ function generateY1Day(rng, term, subjects) {
 }
 
 function generatePreschoolDay(rng, term, subjects) {
+  const usedBlends = new Set();
   const generators = [
     { subject: "phonics", make: () => qLetterName(rng) },
     { subject: "phonics", make: () => qInitialSound(rng) },
+    { subject: "phonics", make: () => qBlend(rng, term, usedBlends) },
   ];
   if (term !== "autumn") {
     generators.push({ subject: "reading", make: () => qCvcRead(rng) });
     generators.push({ subject: "reading", make: () => qRhyme(rng) });
+    // more of the pool is non-blending from spring on, so blending gets a second slot
+    generators.push({ subject: "phonics", make: () => qBlend(rng, term, usedBlends) });
   }
   if (term === "summer") {
     generators.push({ subject: "phonics", make: () => qPhase3Sound(rng) });
@@ -1549,12 +1684,19 @@ function generateY2Day(rng, term, subjects) {
   // broadly pitched at KS1 and give continuity) - but spelling is now genuinely Year 2:
   // the National Curriculum Year 2 common exception words, plus the -ment/-ness/-ful/-less/-ly
   // suffix rule that's specific to Year 2.
+  // Spelling is the big focus: typed spellings, missing-letter spellings and the suffix rule,
+  // with the word list widening each term (see y2WordPool). `used` stops a word repeating
+  // within one day across all three.
+  const pool = y2WordPool(term);
+  const used = new Set();
   const generators = [
     { subject: "phonics", make: () => qPhonicsGrapheme(rng) },
     { subject: "phonics", make: () => qPhonicsFindWord(rng) },
-    { subject: "spelling", make: () => qYear2CewSpell(rng, Y2_CEW) },
-    { subject: "spelling", make: () => qYear2CewSpell(rng, Y2_CEW) },
-    { subject: "spelling", make: () => qYear2Suffix(rng) },
+    { subject: "spelling", make: () => qYear2CewSpell(rng, pool, used) },
+    { subject: "spelling", make: () => qYear2CewSpell(rng, pool, used) },
+    { subject: "spelling", make: () => qYear2Missing(rng, pool, used) },
+    { subject: "spelling", make: () => qYear2Missing(rng, pool, used) },
+    { subject: "spelling", make: () => qYear2Suffix(rng, used) },
     { subject: "punctuation", make: () => qFullStopOrQuestion(rng) },
     { subject: "punctuation", make: () => qCapital(rng) },
     { subject: "grammar", make: () => qPlural(rng) },
@@ -1575,7 +1717,8 @@ function generateY2Day(rng, term, subjects) {
     main.push(gen());
   }
 
-  const challenger = [qYear2Suffix(rng), qYear2CewSpell(rng, Y2_CEW)];
+  // Challengers reach into the full word list - in the first term that's the next stretch up.
+  const challenger = [qYear2Missing(rng, Y2_CEW, used), qYear2Suffix(rng, used)];
 
   return [
     ...main.map((q, i) => ({ ...q, idx: i, challenger: false })),
@@ -1942,6 +2085,115 @@ function HomeView({ profile, data, setData, onStart, setView }) {
 }
 
 /* ============================ PRACTICE ============================ */
+/* ============================ BLEND CARDS ============================ */
+// Blending practice for early readers. Letter cards start face down; the child turns them
+// over one at a time, in order (each tap plays that sound), then taps "Blend it!" and the
+// cards slide together, the sounds run into the word, and a picture appears.
+function BlendCards({ q, onBlended, onNext }) {
+  const units = q.units;
+  const [flipped, setFlipped] = useState(0);
+  const [blended, setBlended] = useState(false);
+  const allFlipped = flipped >= units.length;
+
+  const tapCard = (i) => {
+    if (blended) return;
+    if (i === flipped) {
+      speak(soundFor(units[i]));
+      setFlipped(flipped + 1);
+    } else if (i < flipped) {
+      speak(soundFor(units[i])); // tap a turned card to hear its sound again
+    }
+  };
+
+  const blend = () => {
+    setBlended(true);
+    speakSequence([...units.map(soundFor), q.blendWord]);
+    onBlended();
+  };
+
+  const face = {
+    position: "absolute", inset: 0, borderRadius: 16,
+    display: "grid", placeItems: "center",
+    backfaceVisibility: "hidden", WebkitBackfaceVisibility: "hidden",
+  };
+
+  return (
+    <div style={{ marginTop: 18, textAlign: "center" }}>
+      <style>{`
+        @keyframes blendPulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.08); } }
+        @keyframes blendPop { 0% { transform: scale(0.5); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+      `}</style>
+
+      <div style={{ display: "flex", justifyContent: "center", gap: blended ? 3 : 12, transition: "gap 0.5s ease" }}>
+        {units.map((u, i) => {
+          const isUp = i < flipped;
+          const isNext = i === flipped && !blended;
+          return (
+            <button
+              key={i}
+              onClick={() => tapCard(i)}
+              aria-label={isUp ? `Letter ${u}, tap to hear it again` : `Turn over card ${i + 1}`}
+              style={{
+                width: units.length > 3 ? 68 : 82, height: 108, padding: 0,
+                border: "none", background: "none", cursor: "pointer", perspective: 600,
+                animation: isNext ? "blendPulse 1.1s ease-in-out infinite" : "none",
+                opacity: !isUp && !isNext ? 0.55 : 1,
+                transition: "opacity 0.3s",
+              }}
+            >
+              <div style={{
+                position: "relative", width: "100%", height: "100%",
+                transformStyle: "preserve-3d", WebkitTransformStyle: "preserve-3d",
+                transition: "transform 0.5s ease",
+                transform: isUp ? "rotateY(180deg)" : "rotateY(0deg)",
+              }}>
+                <div style={{ ...face, background: "#143232", border: "3px solid #0C2222", color: "#D4A04A", fontSize: 34 }}>
+                  ?
+                </div>
+                <div style={{
+                  ...face, transform: "rotateY(180deg)",
+                  background: "#FFFFFF", border: `3px solid ${blended ? "#3DAA7C" : "#D4A04A"}`,
+                  color: "#143232", fontWeight: 800, fontSize: u.length > 1 ? 40 : 56,
+                  fontFamily: "'Fraunces', Georgia, serif",
+                }}>
+                  {u}
+                </div>
+              </div>
+            </button>
+          );
+        })}
+      </div>
+
+      {!allFlipped && (
+        <div style={{ marginTop: 14, fontSize: 14, color: "#5C6F66", fontWeight: 600 }}>
+          Tap the glowing card to turn it over
+        </div>
+      )}
+
+      {allFlipped && !blended && (
+        <button onClick={blend} style={{ ...S.submitBtn, marginTop: 18, background: "#D4823F", fontSize: 18 }}>
+          <Volume2 size={18} /> <span style={{ marginLeft: 8 }}>Blend it!</span>
+        </button>
+      )}
+
+      {blended && (
+        <div style={{ marginTop: 14, animation: "blendPop 0.45s ease-out both" }}>
+          <div style={{ fontSize: 76, lineHeight: 1 }}>{q.emoji}</div>
+          <div style={{ fontFamily: "'Fraunces', Georgia, serif", fontSize: 40, fontWeight: 800, color: "#143232", marginTop: 4 }}>
+            {q.blendWord}
+          </div>
+          <button style={{ ...S.hearBtn, marginTop: 10 }} onClick={() => speak(q.blendWord)}>
+            <Volume2 size={16} /> <span style={{ marginLeft: 6 }}>Say it again</span>
+          </button>
+          <button onClick={onNext} style={S.submitBtn}>
+            Next <ChevronRight size={16} />
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function PracticeView({ profile, data, setData, onDone }) {
   const today = todayISO();
   const [extraSeed, setExtraSeed] = useState(0);
@@ -1976,6 +2228,12 @@ function PracticeView({ profile, data, setData, onDone }) {
       setShowFeedback(false);
       setIdx(idx + 1);
     }, 900);
+  };
+
+  // Blending is a guided practice activity rather than a quiz: finishing the blend counts as
+  // done, and the child moves on with the Next button when they're ready (no auto-advance).
+  const handleBlended = () => {
+    setAnswers(prev => ({ ...prev, [idx]: { value: q.blendWord, correct: true } }));
   };
 
   const handleType = () => {
@@ -2035,6 +2293,15 @@ function PracticeView({ profile, data, setData, onDone }) {
           <button style={S.hearBtn} onClick={() => speak(q.spoken)}>
             <Volume2 size={16} /> <span style={{ marginLeft: 6 }}>Hear it again</span>
           </button>
+        )}
+
+        {q.mode === "blend" && (
+          <BlendCards
+            key={`${extraSeed}-${idx}`}
+            q={q}
+            onBlended={handleBlended}
+            onNext={() => setIdx(idx + 1)}
+          />
         )}
 
         {q.mode === "choice" && (
