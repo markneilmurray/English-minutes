@@ -514,7 +514,22 @@ const _pickVoice = () => {
   }
 
   // HARD FILTER: only true British English voices
-  const britishVoices = listBritishVoices();
+  let britishVoices = listBritishVoices();
+
+  // Apple devices ship each voice in quality tiers - Compact (the small, robotic default),
+  // Enhanced and Premium (much clearer, but a manual download in Settings) - and the tier is
+  // only visible in the voiceURI/name, e.g. "com.apple.voice.premium.en-GB.Serena". Prefer
+  // the best tier that's installed, so a downloaded Premium voice is used over Compact.
+  // Non-Apple voices (Google, Microsoft) count as Enhanced.
+  const tierOf = (v) => {
+    const id = `${v.voiceURI || ""} ${v.name || ""}`;
+    if (/premium/i.test(id)) return 3;
+    if (/enhanced/i.test(id)) return 2;
+    if (/compact/i.test(id)) return 0;
+    return /^com\.apple\./i.test(v.voiceURI || "") ? 1 : 2;
+  };
+  const bestTier = britishVoices.reduce((m, v) => Math.max(m, tierOf(v)), 0);
+  britishVoices = britishVoices.filter(v => tierOf(v) === bestTier);
 
   // Priority within British voices - prefer high-quality female voices first
   const preferredPatterns = [
